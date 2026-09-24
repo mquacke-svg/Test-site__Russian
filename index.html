@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MIRAI 未来</title>
+<meta name="description" content="MIRAI — авторские туры в Японию: Токио, Киото, Хоккайдо и Окинава. Конструктор маршрута, сезоны и посадочный талон прямо на сайте.">
+<meta name="theme-color" content="#070A18">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=JetBrains+Mono:wght@400;500&family=Onest:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<a class="skip" href="#tours">Перейти к турам</a>
+
+<canvas class="fx" id="fx" aria-hidden="true"></canvas>
+<div class="cursor" id="cursor" aria-hidden="true"><span class="cursor__label"></span></div>
+
+<!-- ============ HUD ============ -->
+<header class="hud" id="hud">
+  <div class="hud__bar">
+    <a class="logo" href="#top" aria-label="MIRAI, на главную">
+      <span class="logo__word">MIRAI</span><span class="logo__kanji">未来</span>
+    </a>
+    <nav class="hud__nav" id="nav" aria-label="Основная навигация">
+      <a href="#tours" data-sound>Туры</a>
+      <a href="#route" data-sound>Маршрут</a>
+      <a href="#seasons" data-sound>Сезоны</a>
+      <a href="#book" data-sound>Поездка</a>
+    </nav>
+    <div class="hud__tools">
+      <p class="hud__clock"><span class="hud__tz">TYO</span> <span data-clock>--:--:--</span></p>
+      <button class="icon-btn" id="cmd-open" type="button" aria-label="Быстрый поиск (клавиша /)" data-sound>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+        <kbd>/</kbd>
+      </button>
+      <button class="icon-btn sound" id="sound" type="button" aria-pressed="false" aria-label="Звук интерфейса" data-sound>
+        <span class="sound__bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      </button>
+      <a class="btn btn--primary btn--sm hud__cta" href="#book" data-magnetic data-sound>Забронировать</a>
+      <button class="icon-btn hud__menu" id="menu" type="button" aria-expanded="false" aria-controls="nav" aria-label="Меню">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16M4 16h16"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="hud__progress" aria-hidden="true"><span id="progress"></span></div>
+</header>
+
+<!-- ============ Линия Мирай: прогресс прокрутки ============ -->
+<nav class="rail" id="rail" aria-label="Станции страницы">
+  <div class="rail__line" aria-hidden="true"><span class="rail__train" id="train"></span></div>
+  <a href="#top" class="rail__st" data-sound><b>出発</b><span>Старт</span></a>
+  <a href="#tours" class="rail__st" data-sound><b>旅</b><span>Туры</span></a>
+  <a href="#route" class="rail__st" data-sound><b>道</b><span>Маршрут</span></a>
+  <a href="#seasons" class="rail__st" data-sound><b>季</b><span>Сезоны</span></a>
+  <a href="#book" class="rail__st" data-sound><b>予約</b><span>Поездка</span></a>
+</nav>
+
+<main>
+
+<!-- ============ HERO ============ -->
+<section class="hero" id="top">
+  <div class="hero__media" id="hero-media">
+    <video class="hero__video" id="hero-video" autoplay muted loop playsinline preload="auto" aria-hidden="true">
+      <source src="media/hero.mp4" type="video/mp4">
+      <source src="https://d8j0ntlcm91z4.cloudfront.net/user_3IrgtnvahWe3JUlBn5Gjn3jScSZ/hf_20260924_193319_dce08b2f-7471-49b7-8c6e-ec66718529dc.mp4" type="video/mp4">
+    </video>
+    <div class="hero__shade"></div>
+    <div class="hero__scan"></div>
+  </div>
+
+  <div class="hero__kanji" id="hero-kanji" aria-hidden="true">未来</div>
+
+  <div class="hero__inner wrap">
+    <pre class="term" id="term" aria-hidden="true"></pre>
+    <p class="eyebrow"><span class="dot"></span>Авторские туры · сезон 2026–2027</p>
+    <h1 class="hero__title">
+      <span class="hero__l1" data-scramble>Япония</span>
+      <span class="hero__l2" data-scramble>из будущего</span>
+    </h1>
+    <p class="hero__lead">Неон Токио, тысячи тории Киото, онсэны под снегом Хоккайдо и лагуны Окинавы. Соберите маршрут на карте за минуту, а мы превратим его в поездку.</p>
+    <div class="hero__cta">
+      <a class="btn btn--primary" href="#route" data-magnetic data-sound>Собрать маршрут</a>
+      <a class="btn btn--ghost" href="#tours" data-magnetic data-sound>Смотреть туры</a>
+    </div>
+    <dl class="readouts">
+      <div><dt>Токио сейчас</dt><dd data-clock>--:--:--</dd></div>
+      <div><dt>Москва → Токио</dt><dd>7 480 км</dd></div>
+      <div><dt>Разница во времени</dt><dd>+6 ч</dd></div>
+      <div><dt>Сезон</dt><dd id="season-readout">Осень · 秋</dd></div>
+    </dl>
+    <p class="hero__hint" aria-hidden="true">Коснитесь экрана — сезон отзовётся</p>
+  </div>
+
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker__track">
+      <span>東京 Токио</span><span>京都 Киото</span><span>北海道 Хоккайдо</span><span>沖縄 Окинава</span><span>富士山 Фудзи</span><span>奈良 Нара</span><span>大阪 Осака</span><span>広島 Хиросима</span><span>日光 Никко</span><span>箱根 Хаконэ</span>
+      <span>東京 Токио</span><span>京都 Киото</span><span>北海道 Хоккайдо</span><span>沖縄 Окинава</span><span>富士山 Фудзи</span><span>奈良 Нара</span><span>大阪 Осака</span><span>広島 Хиросима</span><span>日光 Никко</span><span>箱根 Хаконэ</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ТУРЫ ============ -->
+<section class="section" id="tours">
+  <div class="wrap">
+    <header class="sec-head">
+      <p class="eyebrow"><b class="eyebrow__kanji">旅</b>Туры · 4 направления</p>
+      <h2 class="sec-title" data-scramble>Выберите свою Японию</h2>
+      <p class="sec-lead">Наведите на карточку или пролистайте до неё, чтобы увидеть место вживую. Нажмите, чтобы открыть программу по дням.</p>
+    </header>
+    <div class="tours" id="tours-grid"></div>
+  </div>
+</section>
+
+<!-- ============ МАРШРУТ ============ -->
+<section class="section section--route" id="route">
+  <div class="wrap">
+    <header class="sec-head">
+      <p class="eyebrow"><b class="eyebrow__kanji">道</b>Маршрут · конструктор</p>
+      <h2 class="sec-title" data-scramble>Проложите путь по карте</h2>
+      <p class="sec-lead">Нажимайте на города в том порядке, в котором хотите их посетить. Мы посчитаем ночи, время в пути и ориентировочную стоимость.</p>
+    </header>
+
+    <div class="route">
+      <div class="map" id="map">
+        <canvas class="map__canvas" id="map-canvas" aria-hidden="true"></canvas>
+        <div class="map__inset" id="map-inset" aria-hidden="true"><span>沖縄 · врезка</span></div>
+        <div class="map__cities" id="map-cities"></div>
+        <p class="map__legend" aria-hidden="true"><span class="lg lg--rail"></span>поезд <span class="lg lg--air"></span>перелёт</p>
+      </div>
+
+      <aside class="planner" aria-labelledby="planner-title">
+        <div class="planner__head">
+          <h3 id="planner-title">Ваш маршрут</h3>
+          <button class="link-btn" id="route-reset" type="button" data-sound>Очистить</button>
+        </div>
+        <div class="chips" id="route-presets" role="group" aria-label="Готовые маршруты"></div>
+        <ol class="legs" id="route-list" aria-live="polite"></ol>
+        <dl class="sum" id="route-sum"></dl>
+        <p class="jr" id="route-jr"></p>
+        <button class="btn btn--primary btn--block" id="route-book" type="button" data-sound>Забронировать этот маршрут</button>
+        <p class="fine">Расчёт ориентировочный: перелёт из Москвы и обратно, отели 4★, гид и трансферы. Курс для расчёта: 1 ¥ ≈ 0,55 ₽.</p>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ============ СЕЗОНЫ ============ -->
+<section class="section" id="seasons">
+  <div class="wrap">
+    <header class="sec-head">
+      <p class="eyebrow"><b class="eyebrow__kanji">季</b>Сезоны · 4 режима</p>
+      <h2 class="sec-title" data-scramble>Когда лететь</h2>
+      <p class="sec-lead">Переключите сезон: сайт сменит цвет, а в воздухе появятся лепестки сакуры, светлячки, кленовые листья или снег.</p>
+    </header>
+    <div class="seasons">
+      <div class="seasons__tabs" id="season-tabs" role="tablist" aria-label="Сезоны"></div>
+      <div class="seasons__panel" id="season-panel" role="tabpanel" tabindex="0"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ПОЕЗДКА ============ -->
+<section class="section section--book" id="book">
+  <div class="wrap">
+    <header class="sec-head">
+      <p class="eyebrow"><b class="eyebrow__kanji">予約</b>Поездка · заявка</p>
+      <h2 class="sec-title" data-scramble>Ваш посадочный талон</h2>
+      <p class="sec-lead">Заполните форму, и талон соберётся на ваших глазах. Имя мы запишем латиницей, как в загранпаспорте.</p>
+    </header>
+
+    <ol class="steps">
+      <li><b>01</b><span>Заявка</span><small>вы выбираете тур и месяц</small></li>
+      <li><b>02</b><span>Маршрут и виза</span><small>уточняем программу, помогаем с документами на визу</small></li>
+      <li><b>03</b><span>Перелёт</span><small>билеты, отели и JR Pass в одном письме</small></li>
+      <li><b>04</b><span>Гид на месте</span><small>русскоговорящий гид и чат 24/7</small></li>
+    </ol>
+
+    <div class="book">
+      <form class="form" id="book-form" novalidate>
+        <div class="field">
+          <label for="f-name">Имя и фамилия</label>
+          <input id="f-name" name="name" type="text" autocomplete="name" placeholder="Анна Смирнова" required>
+          <p class="field__err" id="f-name-err"></p>
+        </div>
+        <div class="field">
+          <label for="f-email">Email</label>
+          <input id="f-email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="anna@example.ru" required>
+          <p class="field__err" id="f-email-err"></p>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="f-tour">Тур</label>
+            <select id="f-tour" name="tour"></select>
+          </div>
+          <div class="field">
+            <label for="f-month">Месяц вылета</label>
+            <select id="f-month" name="month"></select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <span class="label" id="f-pax-label">Путешественников</span>
+            <div class="stepper" role="group" aria-labelledby="f-pax-label">
+              <button type="button" id="f-pax-minus" aria-label="Меньше" data-sound>−</button>
+              <output id="f-pax" aria-live="polite">2</output>
+              <button type="button" id="f-pax-plus" aria-label="Больше" data-sound>+</button>
+            </div>
+          </div>
+          <fieldset class="field seg">
+            <legend class="label">Класс</legend>
+            <div class="seg__opts">
+              <input type="radio" name="cls" id="f-cls-1" value="ЭКОНОМ" checked><label for="f-cls-1" data-sound>Эконом</label>
+              <input type="radio" name="cls" id="f-cls-2" value="КОМФОРТ"><label for="f-cls-2" data-sound>Комфорт</label>
+              <input type="radio" name="cls" id="f-cls-3" value="ПРЕМИУМ"><label for="f-cls-3" data-sound>Премиум</label>
+            </div>
+          </fieldset>
+        </div>
+        <button class="btn btn--primary btn--block" type="submit" data-magnetic data-sound>Сформировать заявку</button>
+        <p class="fine" id="form-note">Демо-версия сайта: заявка остаётся на этой странице и никуда не отправляется.</p>
+      </form>
+
+      <div class="pass-wrap">
+        <article class="pass" id="pass" aria-label="Посадочный талон, предпросмотр">
+          <div class="pass__sheen" aria-hidden="true"></div>
+          <header class="pass__top">
+            <p class="pass__brand">MIRAI AIR <span>未来航空</span></p>
+            <p class="pass__flight">Рейс <b id="p-flight">MR 2099</b></p>
+          </header>
+          <div class="pass__route">
+            <div><b>MOW</b><span>Москва</span></div>
+            <div class="pass__path" aria-hidden="true"><i></i><svg viewBox="0 0 24 24"><path d="M2.5 13.5 21 7.8c.9-.3 1.6.8.9 1.4l-6.6 5.2-1.2 6.1-2.3-.9.4-4.3-4.6 1.4-2 2.4-1.6-.5.9-3.3-3-1.6Z"/></svg><i></i></div>
+            <div class="pass__to"><b id="p-to">HND</b><span id="p-to-city">Токио · Ханэда</span></div>
+          </div>
+          <dl class="pass__grid">
+            <div class="pass__wide"><dt>Пассажир</dt><dd id="p-name">ANNA SMIRNOVA</dd></div>
+            <div><dt>Дата</dt><dd id="p-date">—</dd></div>
+            <div><dt>Класс</dt><dd id="p-cls">ЭКОНОМ</dd></div>
+            <div><dt>Место</dt><dd id="p-seat">—</dd></div>
+            <div><dt>Выход</dt><dd id="p-gate">—</dd></div>
+            <div><dt>Гостей</dt><dd id="p-pax">2</dd></div>
+            <div><dt>Бронь</dt><dd id="p-pnr">—</dd></div>
+          </dl>
+          <div class="pass__tear" aria-hidden="true"></div>
+          <footer class="pass__foot">
+            <canvas class="pass__code" id="p-code" aria-hidden="true"></canvas>
+            <p class="pass__tour" id="p-tour">Неоновый Токио</p>
+          </footer>
+          <div class="pass__stamp" id="p-stamp" hidden>
+            <b>Заявка сформирована</b>
+            <span id="p-stamp-meta"></span>
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap foot__in">
+    <p class="foot__logo">MIRAI <span>未来</span></p>
+    <p>Концепт-сайт авторских туров в Японию. Цены, даты и рейсы на этой странице приведены для примера.</p>
+    <p class="foot__meta">Видео: Kling 3.0 через Higgsfield · Карта: Natural Earth · Нажмите <kbd>/</kbd> для быстрого поиска</p>
+  </div>
+</footer>
+
+<!-- ============ Модальное окно тура ============ -->
+<dialog class="modal" id="tour-modal" aria-labelledby="m-title">
+  <div class="modal__box">
+    <button class="modal__close icon-btn" type="button" id="m-close" aria-label="Закрыть" data-sound>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+    <div class="modal__media"><video id="m-video" muted loop playsinline preload="none" aria-hidden="true"></video></div>
+    <div class="modal__body">
+      <p class="eyebrow" id="m-eyebrow"></p>
+      <h3 class="modal__title" id="m-title"></h3>
+      <p class="modal__meta" id="m-meta"></p>
+      <ol class="days" id="m-days"></ol>
+      <div class="modal__actions">
+        <button class="btn btn--primary" type="button" id="m-book" data-sound>Забронировать</button>
+        <button class="btn btn--ghost" type="button" id="m-route" data-sound>Открыть на карте</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<!-- ============ Командная строка ============ -->
+<dialog class="cmd" id="cmd" aria-label="Быстрый поиск">
+  <div class="cmd__box">
+    <div class="cmd__input">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+      <input id="cmd-input" type="text" autocomplete="off" spellcheck="false" placeholder="Куда отправимся? Например: Киото, зима, север" role="combobox" aria-expanded="true" aria-controls="cmd-list" aria-autocomplete="list">
+    </div>
+    <ul class="cmd__list" id="cmd-list" role="listbox" aria-label="Команды"></ul>
+    <p class="cmd__hint"><kbd>↑</kbd><kbd>↓</kbd> выбрать · <kbd>Enter</kbd> выполнить · <kbd>Esc</kbd> закрыть</p>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="js/japan-outline.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
