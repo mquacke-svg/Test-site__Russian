@@ -48,15 +48,9 @@
   };
 
   /* ---------- Данные ---------- */
-  const CDN = 'https://d8j0ntlcm91z4.cloudfront.net/user_3IrgtnvahWe3JUlBn5Gjn3jScSZ/';
-  // Сначала локальный файл из media/, если его нет — копия на CDN Higgsfield.
-  const VIDEO = {
-    tokyo: ['media/tokyo.mp4', CDN + 'hf_20260924_193311_94d41618-45fc-426a-ae11-97e1b0161bc6.mp4'],
-    kyoto: ['media/kyoto.mp4', CDN + 'hf_20260924_193311_911e3988-4083-4922-a399-0fd9096aeeb1.mp4'],
-    hokkaido: ['media/hokkaido.mp4', CDN + 'hf_20260924_193319_988b3b77-302e-49fa-8fe6-359468ee395a.mp4'],
-    okinawa: ['media/okinawa.mp4', CDN + 'hf_20260924_193311_e0e3c9c3-534c-4070-86a4-c9702068d358.mp4'],
-  };
-  const sourcesHTML = key => VIDEO[key].map(src => `<source src="${src}" type="video/mp4">`).join('');
+  // Видео Kling лежат в media/: <id>.mp4 и кадр-обложка <id>.jpg
+  const sourcesHTML = key => `<source src="media/${key}.mp4" type="video/mp4">`;
+  const posterOf = key => `media/${key}.jpg`;
 
   const CITIES = {
     sapporo:   { name: 'Саппоро',   k: '札幌', lat: 43.06, lon: 141.35, side: 'r', n: 3, ap: 'CTS', apName: 'Саппоро · Новый Титосэ' },
@@ -529,7 +523,7 @@
     const grid = $('#tours-grid');
     grid.innerHTML = TOURS.map(t => `
       <article class="tour reveal" data-id="${t.id}" data-cursor="Открыть">
-        <div class="tour__media"><video muted loop playsinline preload="none" aria-hidden="true">${sourcesHTML(t.id)}</video></div>
+        <div class="tour__media"><video muted loop playsinline preload="none" poster="${posterOf(t.id)}" aria-hidden="true">${sourcesHTML(t.id)}</video></div>
         <div class="tour__sheen" aria-hidden="true"></div>
         <div class="tour__top">
           <span class="tour__code">${t.code}</span>
@@ -597,6 +591,7 @@
       $('#m-title').textContent = t.title;
       $('#m-meta').textContent = `${t.days} ${plural(t.days, ['день', 'дня', 'дней'])} · ${t.cities} · лучше всего: ${t.best} · от ${nf.format(t.price)} ₽ на человека`;
       $('#m-days').innerHTML = t.plan.map(([d, txt]) => `<li><b>${d}</b><span>${txt}</span></li>`).join('');
+      mv.poster = posterOf(t.id);
       mv.innerHTML = sourcesHTML(t.id);
       mv.load();
       if (!reduced) play(mv);
