@@ -47,6 +47,37 @@
     toastTimer = setTimeout(() => t.classList.remove('is-on'), 3400);
   };
 
+  /* ---------- Загрузка голограммы (один раз за сессию) ---------- */
+  const BOOT_MS = (() => {
+    const boot = $('#boot');
+    if (!boot) return 0;
+    let seen = false;
+    try { seen = sessionStorage.getItem('mirai:boot') === '1'; } catch (e) { /* хранилище недоступно */ }
+    if (reduced || seen) { boot.remove(); return 0; }
+    try { sessionStorage.setItem('mirai:boot', '1'); } catch (e) { /* хранилище недоступно */ }
+    const bar = $('#boot-bar'), pct = $('#boot-pct'), line = $('#boot-line');
+    const LINES = ['Инициализация голограммы', 'Калибровка проектора', 'Синхронизация с Токио', 'Голограмма готова'];
+    const DUR = 1300, start = performance.now();
+    let closed = false;
+    const done = () => {
+      if (closed) return;
+      closed = true;
+      boot.classList.add('is-done');
+      setTimeout(() => boot.remove(), 750);
+    };
+    const step = now => {
+      const t = clamp((now - start) / DUR, 0, 1);
+      bar.style.transform = `scaleX(${t})`;
+      pct.textContent = String(Math.round(t * 100)).padStart(3, '0') + '%';
+      line.textContent = LINES[Math.min(LINES.length - 1, Math.floor(t * LINES.length))];
+      if (t < 1) requestAnimationFrame(step);
+      else setTimeout(done, 150);
+    };
+    requestAnimationFrame(step);
+    boot.addEventListener('click', done);
+    return DUR + 250;
+  })();
+
   /* ---------- Данные ---------- */
   // Видео Kling лежат в media/: <id>.mp4 и кадр-обложка <id>.jpg
   const sourcesHTML = key => `<source src="media/${key}.mp4" type="video/mp4">`;
@@ -70,7 +101,7 @@
 
   const TOURS = [
     {
-      id: 'tokyo', title: 'Неоновый Токио', kanji: '東京', code: 'HND', airport: 'Токио · Ханэда',
+      id: 'tokyo', title: 'Неоновый Токио', kanji: '東京', code: 'HND', coords: '35.68°N 139.69°E', airport: 'Токио · Ханэда',
       days: 7, price: 189000, cities: 'Токио · Никко · Хаконэ', best: 'весна и осень',
       route: [['tokyo', 4], ['nikko', 1], ['hakone', 1]],
       plan: [
@@ -84,7 +115,7 @@
       ],
     },
     {
-      id: 'kyoto', title: 'Киото: путь тории', kanji: '京都', code: 'KIX', airport: 'Осака · Кансай',
+      id: 'kyoto', title: 'Киото: путь тории', kanji: '京都', code: 'KIX', coords: '35.01°N 135.77°E', airport: 'Осака · Кансай',
       days: 9, price: 214000, cities: 'Киото · Нара · Осака', best: 'весна · сакура',
       route: [['kyoto', 5], ['nara', 1], ['osaka', 2]],
       plan: [
@@ -100,7 +131,7 @@
       ],
     },
     {
-      id: 'hokkaido', title: 'Хоккайдо: снег и онсэны', kanji: '北海道', code: 'CTS', airport: 'Саппоро · Новый Титосэ',
+      id: 'hokkaido', title: 'Хоккайдо: снег и онсэны', kanji: '北海道', code: 'CTS', coords: '43.06°N 141.35°E', airport: 'Саппоро · Новый Титосэ',
       days: 8, price: 236000, cities: 'Саппоро · Отару · Нисэко', best: 'январь — февраль',
       route: [['tokyo', 1], ['sapporo', 3], ['niseko', 3]],
       plan: [
@@ -115,7 +146,7 @@
       ],
     },
     {
-      id: 'okinawa', title: 'Окинава: лазурный край', kanji: '沖縄', code: 'OKA', airport: 'Наха · Окинава',
+      id: 'okinawa', title: 'Окинава: лазурный край', kanji: '沖縄', code: 'OKA', coords: '26.21°N 127.68°E', airport: 'Наха · Окинава',
       days: 10, price: 248000, cities: 'Наха · Керама · Исигаки', best: 'июль — октябрь',
       route: [['tokyo', 1], ['naha', 4], ['ishigaki', 4]],
       plan: [
@@ -228,10 +259,10 @@
     const c = $('#fx');
     const ctx = c.getContext('2d');
     const PAL = {
-      petals: ['#FFB3CE', '#FF8DB5', '#FFD6E5'],
-      fireflies: ['#FFE9A3', '#FFD36B', '#F6FFB0'],
-      leaves: ['#FF6A3D', '#E8432A', '#FFB547', '#C8321F'],
-      snow: ['#FFFFFF', '#E6F4FF', '#CFE8FF'],
+      petals: ['#FF9BD2', '#FFC4E4', '#FF7AD9'],
+      fireflies: ['#FFE9A3', '#7DF9FF', '#FFD27A'],
+      leaves: ['#FF9160', '#FFB86B', '#FF6A5C'],
+      snow: ['#E6F6FF', '#7DF9FF', '#BFEFFF'],
     };
     let W = 0, H = 0, dpr = 1, type = 'leaves', parts = [], bursts = [], raf = 0, lastT = 0, fade = 1, heroH = 600;
     const mouse = { x: -9999, y: -9999 };
@@ -320,6 +351,7 @@
       lastT = t;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'lighter';
       fade += ((window.scrollY < heroH * .7 ? 1 : .35) - fade) * .05;
       for (const p of parts) {
         move(p, k);
@@ -352,7 +384,7 @@
         const a = rnd(0, Math.PI * 2), sp = rnd(1.5, type === 'fireflies' ? 6 : 4.5);
         p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp - 1;
         p.life = rnd(60, 110);
-        if (type === 'fireflies') p.col = pick(['#FFE9A3', '#FF8DB5', '#6CF0D2', '#FFB547']);
+        if (type === 'fireflies') p.col = pick(['#FFE9A3', '#FF7AD9', '#7DF9FF', '#A98BFF']);
         bursts.push(p);
       }
     };
@@ -364,6 +396,238 @@
     resize();
     start();
     return { setType, burst };
+  })();
+
+  /* ---------- Голограмма Японии: облако точек в псевдо-3D ---------- */
+  const Holo = (() => {
+    const wrap = $('#holo3d'), cvs = $('#holo-canvas'), ctx = cvs.getContext('2d'), tagsEl = $('#holo-tags');
+    const LON0 = 136.4, LAT0 = 34.8, K = Math.cos(36 * Math.PI / 180), SC = 1 / 8.5;
+    const rings = window.MIRAI_JAPAN || [];
+    const boxes = rings.map(r => {
+      let a = 999, b = -999, c = 999, d = -999;
+      for (let i = 0; i < r.length; i += 2) { a = Math.min(a, r[i]); b = Math.max(b, r[i]); c = Math.min(c, r[i + 1]); d = Math.max(d, r[i + 1]); }
+      return [a, b, c, d];
+    });
+    const inside = (lon, lat) => rings.some((r, k) => {
+      const bx = boxes[k];
+      if (lon < bx[0] || lon > bx[1] || lat < bx[2] || lat > bx[3]) return false;
+      let c = false;
+      for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) {
+        const xi = r[i], yi = r[i + 1], xj = r[j], yj = r[j + 1];
+        if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) c = !c;
+      }
+      return c;
+    });
+    // Рельеф: пик Фудзи и хребет Японских Альп, с голографическим преувеличением
+    const FUJI = [138.73, 35.36];
+    const relief = (lon, lat) => {
+      const dx = (lon - FUJI[0]) * K, dy = lat - FUJI[1];
+      const alps = Math.exp(-((((lon - 137.6) * K) ** 2) + (lat - 36.2) ** 2) / .35) * .9;
+      return Math.exp(-(dx * dx + dy * dy) / .05) * 3.4 + alps;
+    };
+    const raw = [];
+    const add = (lon, lat, y, type) => raw.push((lon - LON0) * K * SC, y * SC, (lat - LAT0) * SC, type);
+    for (let lat = 24; lat <= 45.8; lat += .22) {
+      for (let lon = 122.8; lon <= 146.2; lon += .22 / K) if (inside(lon, lat)) add(lon, lat, relief(lon, lat), 0);
+    }
+    rings.forEach(r => {
+      for (let i = 0; i < r.length; i += 2) {
+        const j = (i + 2) % r.length;
+        const x1 = r[i], y1 = r[i + 1], x2 = r[j], y2 = r[j + 1];
+        const n = Math.max(1, Math.round(Math.hypot((x2 - x1) * K, y2 - y1) / .1));
+        for (let k = 0; k < n; k++) add(x1 + (x2 - x1) * k / n, y1 + (y2 - y1) * k / n, 0, 1);
+      }
+    });
+    for (let rr = .02; rr <= .55; rr += .045) {
+      const n = Math.round(rr * 60);
+      for (let k = 0; k < n; k++) {
+        const a = k / n * Math.PI * 2;
+        const lon = FUJI[0] + Math.cos(a) * rr / K, lat = FUJI[1] + Math.sin(a) * rr;
+        add(lon, lat, relief(lon, lat), 2);
+      }
+    }
+    const P = new Float32Array(raw);
+    const N = P.length / 4;
+    const bx = new Float32Array(N), by = new Float32Array(N), bs = new Float32Array(N), bg = new Uint8Array(N);
+
+    // Главные города: id, тур и высота светового столба (разная, чтобы подписи не слипались)
+    const MAIN = [['tokyo', 'tokyo', .52], ['kyoto', 'kyoto', .3], ['sapporo', 'hokkaido', .42], ['naha', 'okinawa', .36]];
+    const beams = Object.entries(CITIES).map(([id, c]) => {
+      const main = MAIN.find(m => m[0] === id);
+      return { id, x: (c.lon - LON0) * K * SC, z: (c.lat - LAT0) * SC, h: main ? main[2] : .16, main: !!main };
+    });
+    const tags = MAIN.map(([id, tour]) => {
+      const c = CITIES[id];
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'htag';
+      b.setAttribute('aria-label', `${c.name}: открыть тур`);
+      b.innerHTML = `<b aria-hidden="true">${c.k}</b><span>${c.name}</span><small>${c.lat.toFixed(2)}°N · ${c.lon.toFixed(2)}°E</small>`;
+      b.addEventListener('click', e => { e.stopPropagation(); Tours.open(tour); });
+      tagsEl.appendChild(b);
+      return { id, el: b, beam: beams.find(x => x.id === id), w: 0, h: 0 };
+    });
+    const measure = () => tags.forEach(tg => { tg.w = tg.el.offsetWidth; tg.h = tg.el.offsetHeight; });
+
+    let W = 0, H = 0, dpr = 1, F = 1, cx = 0, cy = 0;
+    let yaw = -.35, vel = .12, dragging = false, lastX = 0, dragDist = 0, visible = true, raf = 0, last = 0;
+    const PITCH = .98, CAM = 3.6, AUTO = .12;
+    const cp = Math.cos(PITCH), sp = Math.sin(PITCH);
+    let cs = 1, sn = 0;
+    const out = [0, 0, 0];
+    const proj = (x, y, z) => {
+      const X = x * cs + z * sn, Z = -x * sn + z * cs;
+      const up = y * cp + Z * sp, depth = Z * cp - y * sp;
+      const f = F / (CAM + depth);
+      out[0] = cx + X * f; out[1] = cy - up * f; out[2] = depth;
+      return out;
+    };
+
+    const resize = () => {
+      W = wrap.clientWidth; H = wrap.clientHeight;
+      if (!W || !H) return;
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      cvs.width = Math.round(W * dpr); cvs.height = Math.round(H * dpr);
+      F = Math.min(W * .36, H * .42) * CAM;
+      cx = W / 2; cy = H * .5;
+      measure();
+      draw(performance.now());
+    };
+
+    const draw = t => {
+      if (!W) return;
+      const dt = Math.min(.05, (t - (last || t)) / 1000);
+      last = t;
+      if (!dragging && !reduced) { vel += (AUTO - vel) * Math.min(1, dt * 1.2); yaw += vel * dt; }
+      cs = Math.cos(yaw); sn = Math.sin(yaw);
+      const acc = getComputedStyle(root).getPropertyValue('--accent').trim() || '#FF9160';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'lighter';
+
+      // Кольца проектора под картой
+      ctx.lineWidth = 1;
+      [[1.3, .28, [2, 6]], [1.42, .18, [18, 10]], [1.08, .12, []]].forEach(([r, a, dash]) => {
+        ctx.beginPath();
+        for (let k = 0; k <= 96; k++) {
+          const ang = k / 96 * Math.PI * 2;
+          const p = proj(Math.cos(ang) * r, -.06, Math.sin(ang) * r);
+          if (k) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]);
+        }
+        ctx.setLineDash(dash);
+        ctx.lineDashOffset = reduced ? 0 : -t / 60;
+        ctx.strokeStyle = `rgba(125,249,255,${a})`;
+        ctx.stroke();
+      });
+      ctx.setLineDash([]);
+      for (let k = 0; k < 36; k++) {
+        const ang = k / 36 * Math.PI * 2;
+        const a = proj(Math.cos(ang) * 1.3, -.06, Math.sin(ang) * 1.3), ax = a[0], ay = a[1];
+        const b = proj(Math.cos(ang) * 1.36, -.06, Math.sin(ang) * 1.36);
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(b[0], b[1]);
+        ctx.strokeStyle = 'rgba(125,249,255,.35)'; ctx.stroke();
+      }
+
+      // Облако точек с яркостью по глубине и сканирующей плоскостью
+      const scanZ = reduced ? 9 : ((t / 5200) % 1) * 2.6 - 1.3;
+      for (let i = 0; i < N; i++) {
+        const o = i * 4, type = P[o + 3];
+        const p = proj(P[o], P[o + 1], P[o + 2]);
+        let a = clamp(.3 + (.9 - p[2]) * .38, .12, 1);
+        if (Math.abs(P[o + 2] - scanZ) < .045) a = 1;
+        a *= type === 1 ? 1 : type === 2 ? .95 : .7;
+        bx[i] = p[0]; by[i] = p[1]; bs[i] = (type === 2 ? 1.9 : type === 1 ? 1.5 : 1.3) * CAM / (CAM + p[2]);
+        bg[i] = type * 4 + Math.min(3, (a * 4) | 0);
+      }
+      const COLORS = ['#7DF9FF', '#D8FEFF', acc];
+      for (let g = 0; g < 12; g++) {
+        ctx.fillStyle = COLORS[(g / 4) | 0];
+        ctx.globalAlpha = .22 + (g % 4) * .26;
+        for (let i = 0; i < N; i++) {
+          if (bg[i] !== g) continue;
+          const s = bs[i];
+          ctx.fillRect(bx[i] - s / 2, by[i] - s / 2, s, s);
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      // Линия сканирования
+      if (!reduced && Math.abs(scanZ) < 1.2) {
+        const a = proj(-1.2, 0, scanZ), ax = a[0], ay = a[1];
+        const b = proj(1.2, 0, scanZ);
+        const gr = ctx.createLinearGradient(ax, ay, b[0], b[1]);
+        gr.addColorStop(0, 'rgba(125,249,255,0)');
+        gr.addColorStop(.5, 'rgba(125,249,255,.55)');
+        gr.addColorStop(1, 'rgba(125,249,255,0)');
+        ctx.strokeStyle = gr; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      }
+
+      // Световые столбы городов
+      beams.forEach(bm => {
+        const a = proj(bm.x, 0, bm.z), ax = a[0], ay = a[1];
+        const b = proj(bm.x, bm.h, bm.z), bxp = b[0], byp = b[1];
+        const col = bm.main ? acc : '#7DF9FF';
+        const gr = ctx.createLinearGradient(ax, ay, bxp, byp);
+        gr.addColorStop(0, col);
+        gr.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.strokeStyle = gr;
+        ctx.lineWidth = bm.main ? 2 : 1.2;
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bxp, byp); ctx.stroke();
+        ctx.fillStyle = col;
+        ctx.beginPath(); ctx.arc(ax, ay, bm.main ? 3 : 2, 0, Math.PI * 2); ctx.fill();
+        if (bm.main) {
+          const ph = reduced ? .5 : (((t / 1400 + bm.x) % 1) + 1) % 1;
+          ctx.globalAlpha = 1 - ph;
+          ctx.strokeStyle = col; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.ellipse(ax, ay, 4 + ph * 16, (4 + ph * 16) * cp, 0, 0, Math.PI * 2); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      });
+      ctx.globalCompositeOperation = 'source-over';
+
+      // Подписи над столбами
+      // Подписи над столбами: слева от центра смотрят влево, справа — вправо, и не выходят за рамку
+      tags.forEach(tg => {
+        const p = proj(tg.beam.x, tg.beam.h, tg.beam.z);
+        const left = p[0] < cx;
+        const x = clamp(left ? p[0] - tg.w - 4 : p[0] + 4, 2, W - tg.w - 2);
+        const y = clamp(p[1] - tg.h, 2, H - tg.h - 2);
+        tg.el.classList.toggle('is-l', left);
+        tg.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+        tg.el.style.opacity = p[2] > .45 ? '.5' : '1';
+        tg.el.style.zIndex = String(100 - Math.round(p[2] * 40));
+      });
+    };
+
+    const loop = t => { raf = 0; draw(t); if (visible && !reduced && !document.hidden) raf = requestAnimationFrame(loop); };
+    const kick = () => { if (!raf && visible && !reduced) raf = requestAnimationFrame(loop); };
+
+    wrap.addEventListener('pointerdown', e => {
+      dragDist = 0;
+      if (e.target.closest('.htag')) return;
+      dragging = true; lastX = e.clientX; vel = 0;
+    });
+    window.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const dx = e.clientX - lastX;
+      lastX = e.clientX;
+      dragDist += Math.abs(dx);
+      yaw += dx * .008;
+      vel = clamp(dx * .3, -3, 3);
+      if (reduced) draw(performance.now());
+    }, { passive: true });
+    const end = () => { dragging = false; };
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+
+    new IntersectionObserver(([en]) => { visible = en.isIntersecting; if (visible) kick(); }).observe(wrap);
+    new ResizeObserver(resize).observe(wrap);
+    document.addEventListener('visibilitychange', kick);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+    resize();
+    kick();
+    return { justDragged: () => dragDist > 6 };
   })();
 
   /* ---------- Часы Токио ---------- */
@@ -423,7 +687,7 @@
   /* ---------- HUD: прокрутка, прогресс, линия станций ---------- */
   (() => {
     const hud = $('#hud'), bar = $('#progress'), train = $('#train'), rail = $('#rail');
-    const media = $('#hero-media'), kanji = $('#hero-kanji');
+    const media = $('#hero-media');
     const sections = ['top', 'tours', 'route', 'seasons', 'book'].map(id => document.getElementById(id));
     const stations = $$('.rail__st');
     const navLinks = $$('.hud__nav a');
@@ -458,8 +722,6 @@
       $('.hero').addEventListener('pointermove', e => {
         const nx = e.clientX / window.innerWidth - .5, ny = e.clientY / window.innerHeight - .5;
         px = -nx * 18; py = -ny * 12;
-        kanji.style.setProperty('--kx', (nx * 26).toFixed(1) + 'px');
-        kanji.style.setProperty('--ky', (ny * 20).toFixed(1) + 'px');
         request();
       });
     }
@@ -488,7 +750,8 @@
 
   /* ---------- Курсор и магнитные кнопки ---------- */
   if (fine && !reduced) {
-    const cur = $('#cursor'), label = cur.querySelector('.cursor__label');
+    const cur = $('#cursor'), label = cur.querySelector('.cursor__label'), xy = $('#cursor-xy');
+    let shown = '';
     let x = -100, y = -100, tx = -100, ty = -100;
     window.addEventListener('pointermove', e => { tx = e.clientX; ty = e.clientY; cur.classList.add('is-on'); }, { passive: true });
     document.addEventListener('pointerleave', () => cur.classList.remove('is-on'));
@@ -502,6 +765,8 @@
     const loop = () => {
       x += (tx - x) * .2; y += (ty - y) * .2;
       cur.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      const txt = `X ${String(Math.max(0, Math.round(tx))).padStart(4, '0')} · Y ${String(Math.max(0, Math.round(ty))).padStart(4, '0')}`;
+      if (txt !== shown) { shown = txt; xy.textContent = txt; }
       requestAnimationFrame(loop);
     };
     loop();
@@ -522,14 +787,14 @@
   const Tours = (() => {
     const grid = $('#tours-grid');
     grid.innerHTML = TOURS.map(t => `
-      <article class="tour reveal" data-id="${t.id}" data-cursor="Открыть">
+      <article class="tour brk reveal" data-id="${t.id}" data-cursor="Открыть">
         <div class="tour__media"><video muted loop playsinline preload="none" poster="${posterOf(t.id)}" aria-hidden="true">${sourcesHTML(t.id)}</video></div>
         <div class="tour__sheen" aria-hidden="true"></div>
         <div class="tour__top">
           <span class="tour__code">${t.code}</span>
           <span class="tour__kanji" aria-hidden="true">${t.kanji}</span>
         </div>
-        <span class="tour__live" aria-hidden="true">в эфире</span>
+        <div class="tour__hud" aria-hidden="true"><span>${t.coords}</span><span class="tour__live">rec</span></div>
         <div class="tour__body">
           <h3 class="tour__title">${t.title}</h3>
           <p class="tour__cities">${t.cities}</p>
@@ -753,12 +1018,12 @@
     const draw = t => {
       if (!mainT) return;
       const acc = getComputedStyle(root).getPropertyValue('--accent').trim() || '#FF6A3D';
-      const HUD = '#6CF0D2';
+      const HUD = '#7DF9FF', AIR = '#A98BFF';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, S, S);
 
       // Точечная матрица суши и сканирующая линия
-      ctx.fillStyle = 'rgba(238,233,223,.2)';
+      ctx.fillStyle = 'rgba(125,249,255,.2)';
       ctx.beginPath();
       for (let i = 0; i < dots.length; i += 2) ctx.rect(dots[i] - .9, dots[i + 1] - .9, 1.8, 1.8);
       ctx.fill();
@@ -773,7 +1038,7 @@
         }
       }
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = 'rgba(150,165,255,.35)';
+      ctx.strokeStyle = 'rgba(125,249,255,.45)';
       ctx.lineWidth = 1;
       ctx.stroke(pathMain);
       ctx.stroke(pathInset);
@@ -785,7 +1050,7 @@
         const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
         const bend = Math.min(70, len * .22) * (L[i].air ? 1 : .5);
         const cx = (x1 + x2) / 2 - dy / len * bend, cy = (y1 + y2) / 2 + dx / len * bend;
-        const col = L[i].air ? HUD : acc;
+        const col = L[i].air ? AIR : acc;
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.quadraticCurveTo(cx, cy, x2, y2);
@@ -807,7 +1072,7 @@
       ctx.shadowBlur = 0;
 
       // Выноски к подписям и точки городов
-      ctx.strokeStyle = 'rgba(150,165,255,.5)';
+      ctx.strokeStyle = 'rgba(125,249,255,.5)';
       ctx.lineWidth = 1;
       Object.keys(CITIES).forEach(id => {
         const r = labelAt[id];
@@ -821,7 +1086,7 @@
         const idx = route.findIndex(s => s.id === id);
         ctx.beginPath();
         ctx.arc(x, y, idx >= 0 ? 4.5 : 3, 0, Math.PI * 2);
-        ctx.fillStyle = idx >= 0 ? acc : 'rgba(238,233,223,.85)';
+        ctx.fillStyle = idx >= 0 ? acc : 'rgba(230,246,255,.9)';
         ctx.fill();
         if (idx >= 0 && !reduced) {
           const ph = (t / 1100 + idx * .2) % 1;
@@ -1057,11 +1322,11 @@
       '> маршрут готов к построению',
     ]);
   }
-  printTerm();
+  setTimeout(printTerm, BOOT_MS);
 
   /* ---------- Hero: касание вызывает сезонный всплеск ---------- */
   $('.hero').addEventListener('click', e => {
-    if (e.target.closest('a, button, input, select, label')) return;
+    if (e.target.closest('a, button, input, select, label') || Holo.justDragged()) return;
     FX.burst(e.clientX, e.clientY);
     Sound.chord(Object.keys(SEASONS).indexOf(Seasons.current) + 2);
   });
@@ -1096,7 +1361,7 @@
       const c = code.getContext('2d');
       c.setTransform(dpr, 0, 0, dpr, 0, 0);
       c.clearRect(0, 0, w, h);
-      c.fillStyle = '#EEE9DF';
+      c.fillStyle = '#E6F6FF';
       let s = seed || 1, x = 0;
       const rand = () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return (s >>> 0) / 4294967296; };
       while (x < w) {
@@ -1251,6 +1516,7 @@
       entries.forEach(en => {
         if (!en.isIntersecting) return;
         en.target.classList.remove('is-pre');
+        en.target.classList.add('is-in');
         io.unobserve(en.target);
       });
     }, { rootMargin: '0px 0px -8% 0px' });
@@ -1264,7 +1530,7 @@
     }, { threshold: .6 });
     titles.forEach(t => tio.observe(t));
 
-    $$('.hero [data-scramble]').forEach((el, i) => setTimeout(() => scramble(el, 1100), 150 + i * 250));
+    $$('.hero [data-scramble]').forEach((el, i) => setTimeout(() => scramble(el, 1100), BOOT_MS + 150 + i * 250));
   })();
 
   /* ---------- Видео hero ---------- */
