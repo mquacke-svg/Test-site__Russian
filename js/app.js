@@ -1466,6 +1466,7 @@
       ...Object.entries(SEASONS).map(([id, s]) => ({ k: s.k, label: `Сезон: ${s.name.toLowerCase()} · ${s.sub}`, tag: 'сезон', words: s.months, run: () => { goTo('#seasons'); Seasons.switchTo(id); } })),
       ...PRESETS.map(p => ({ k: '道', label: `Маршрут: ${p.name.toLowerCase()}`, tag: 'маршрут', words: p.stops.map(([id]) => CITIES[id].name).join(' '), run: () => { Route.load(p.stops); goTo('#route'); } })),
       { k: '旅', label: 'Перейти к турам', tag: 'раздел', words: 'каталог', run: () => goTo('#tours') },
+      { k: '球', label: 'Голограмма Японии на весь экран', tag: 'страница', words: '3d модель 360 вращать', run: () => $('#holo-link').click() },
       { k: '道', label: 'Перейти к карте маршрута', tag: 'раздел', words: 'конструктор карта', run: () => goTo('#route') },
       { k: '予', label: 'Оформить заявку', tag: 'раздел', words: 'бронь талон поездка', run: () => { goTo('#book'); setTimeout(() => $('#f-name').focus({ preventScroll: true }), 600); } },
       { k: '音', label: Sound.on ? 'Выключить звук' : 'Включить звук', tag: 'звук', words: 'музыка', run: () => $('#sound').click() },

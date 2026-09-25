@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Голограмма Японии</title>
+<meta name="description" content="Интерактивная 3D-голограмма Японии: вращайте, приближайте и рассматривайте архипелаг со всех сторон.">
+<meta name="theme-color" content="#03050D">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Onest:wght@400;500;700&family=Unbounded:wght@400;600;800&family=Zen+Kaku+Gothic+New:wght@300;500&display=swap">
+<style>
+:root {
+  color-scheme: dark;
+  --void: #03050D;
+  --holo: #7DF9FF;
+  --text: #E6F6FF;
+  --mute: #8399BE;
+  --line: rgba(125, 249, 255, .14);
+  --line-2: rgba(125, 249, 255, .32);
+  --accent: #FF9160;
+  --f-display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --f-body: "Onest", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --f-jp: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
+  --ease: cubic-bezier(.2, .7, .1, 1);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden;
+  background: radial-gradient(80% 70% at 50% 55%, #0B1634 0%, var(--void) 70%);
+  color: var(--text);
+  font: 400 15px/1.5 var(--f-body);
+  -webkit-font-smoothing: antialiased;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--holo); outline-offset: 3px; }
+
+.stage { position: fixed; inset: 0; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.stage.is-drag { cursor: grabbing; }
+#cv { display: block; width: 100%; height: 100%; }
+.labels { position: absolute; inset: 0; pointer-events: none; }
+.scan {
+  position: fixed; inset: 0; z-index: 2; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(125, 249, 255, .03) 0 1px, transparent 1px 3px);
+}
+
+/* Панели в стиле голограммы */
+.holo {
+  position: relative;
+  background: linear-gradient(180deg, rgba(125, 249, 255, .08), rgba(125, 249, 255, .02) 60%), rgba(5, 9, 22, .72);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.holo::before, .holo::after {
+  content: ""; position: absolute; width: 14px; height: 14px; pointer-events: none;
+  border: 1.5px solid var(--holo); filter: drop-shadow(0 0 6px var(--holo));
+}
+.holo::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+.holo::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+
+.top {
+  position: fixed; z-index: 5; left: 0; right: 0; top: 0;
+  padding: calc(var(--safe-t) + 16px) 20px 0;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  pointer-events: none;
+}
+.top > * { pointer-events: auto; }
+.brand { display: grid; gap: .7rem; justify-items: start; }
+.back {
+  font: 600 .62rem/1 var(--f-display); letter-spacing: .2em; text-transform: uppercase; text-decoration: none;
+  color: var(--holo); padding: .55rem .75rem; border: 1px solid var(--line-2); background: rgba(3, 5, 13, .55);
+}
+.back:hover { border-color: var(--holo); box-shadow: 0 0 14px rgba(125, 249, 255, .3); }
+.eyebrow { margin: 0 0 .3rem; font: 500 .64rem/1.2 var(--f-mono); letter-spacing: .18em; text-transform: uppercase; color: var(--holo); }
+h1 {
+  margin: 0; font: 800 clamp(1.25rem, .9rem + 1.6vw, 2.1rem)/1 var(--f-display); text-transform: uppercase;
+  background: linear-gradient(100deg, #E6F6FF, var(--holo) 35%, #A98BFF 65%, #FF7AD9 90%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 18px rgba(125, 249, 255, .35));
+}
+.read { display: grid; grid-template-columns: repeat(5, auto); margin: 0; }
+.read > div { padding: .6rem .85rem; min-width: 5.4rem; }
+.read > div + div { border-left: 1px solid var(--line); }
+.read dt { font: 500 .56rem/1.2 var(--f-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--mute); }
+.read dd { margin: .3rem 0 0; font: 500 .95rem/1.1 var(--f-mono); font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(125, 249, 255, .4); }
+
+.views {
+  position: fixed; z-index: 5; left: 50%; bottom: calc(var(--safe-b) + 16px); transform: translateX(-50%);
+  display: flex; gap: 6px; padding: 6px; max-width: calc(100% - 32px); overflow-x: auto; scrollbar-width: none;
+}
+.views::-webkit-scrollbar { display: none; }
+.views button, .btn {
+  flex: none; min-height: 38px; padding: .5rem .85rem;
+  border: 1px solid var(--line-2); background: rgba(125, 249, 255, .04);
+  font: 500 .64rem/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; white-space: nowrap;
+  transition: background-color .2s, color .2s, border-color .2s, box-shadow .2s;
+}
+.views button:hover, .btn:hover { border-color: var(--holo); color: var(--holo); }
+.views button[aria-pressed="true"] { background: var(--holo); border-color: var(--holo); color: var(--void); box-shadow: 0 0 16px var(--holo); }
+
+.hint {
+  position: fixed; z-index: 4; left: 50%; bottom: calc(var(--safe-b) + 76px); transform: translateX(-50%);
+  margin: 0; width: max-content; max-width: calc(100% - 32px); text-align: center;
+  font: 400 .6rem/1.4 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--mute);
+}
+
+.panel { position: fixed; z-index: 6; right: 20px; top: calc(var(--safe-t) + 124px); width: 250px; }
+.panel__toggle { display: none; }
+.panel__body { padding: 1rem 1rem 1.1rem; display: grid; gap: .9rem; max-height: calc(100vh - 260px); overflow-y: auto; }
+.panel__head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.panel__close { display: none; border: 1px solid var(--holo); background: none; padding: .35rem .6rem; font: 500 .6rem/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--holo); }
+.panel h2 { margin: 0; font: 600 .78rem/1 var(--f-display); letter-spacing: .12em; text-transform: uppercase; }
+.group { display: grid; gap: .5rem; }
+.group__t { margin: 0; font: 500 .56rem/1 var(--f-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--mute); }
+.sw { display: flex; align-items: center; justify-content: space-between; gap: .8rem; font-size: .84rem; cursor: pointer; }
+.sw input { position: absolute; opacity: 0; pointer-events: none; }
+.sw i {
+  position: relative; flex: none; width: 34px; height: 18px; border: 1px solid var(--line-2); background: rgba(125, 249, 255, .05);
+  transition: background-color .2s, border-color .2s;
+}
+.sw i::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; background: var(--mute);
+  transition: transform .25s var(--ease), background-color .2s, box-shadow .2s;
+}
+.sw input:checked + i { border-color: var(--holo); background: rgba(125, 249, 255, .15); }
+.sw input:checked + i::after { transform: translateX(16px); background: var(--holo); box-shadow: 0 0 10px var(--holo); }
+.sw input:focus-visible + i { outline: 2px solid var(--holo); outline-offset: 2px; }
+.seg { display: flex; border: 1px solid var(--line-2); padding: 3px; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { flex: 1; text-align: center; padding: .4rem 0; font: 500 .6rem/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mute); cursor: pointer; }
+.seg input:checked + label { background: var(--holo); color: var(--void); }
+.seg input:focus-visible + label { outline: 2px solid var(--holo); }
+.range { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .6rem; align-items: center; }
+.range input { width: 100%; accent-color: var(--holo); }
+.range output { font: 500 .8rem/1 var(--f-mono); min-width: 2.6em; text-align: right; }
+.themes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.themes input { position: absolute; opacity: 0; pointer-events: none; }
+.themes label { display: grid; gap: .35rem; justify-items: center; font: 500 .52rem/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); cursor: pointer; }
+.themes label span { width: 100%; height: 22px; border: 1px solid var(--line-2); }
+.themes input:checked + label { color: var(--text); }
+.themes input:checked + label span { border-color: var(--text); box-shadow: 0 0 12px var(--c); }
+.themes input:focus-visible + label span { outline: 2px solid var(--holo); outline-offset: 2px; }
+.btn--block { width: 100%; }
+
+.lab {
+  position: absolute; left: 0; top: 0;
+  display: grid; gap: .15rem; justify-items: start;
+  padding: .35rem .55rem .4rem; border: 0; border-left: 1.5px solid var(--accent);
+  background: linear-gradient(90deg, rgba(3, 5, 13, .8), rgba(3, 5, 13, .2));
+  font: 500 .6rem/1.1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; text-align: left;
+  pointer-events: auto; will-change: transform;
+}
+.lab b { font: 500 .9rem/1 var(--f-jp); letter-spacing: 0; color: var(--accent); text-shadow: 0 0 10px var(--accent); }
+.lab--sm { border-left-color: var(--holo); padding: .25rem .45rem; font-size: .54rem; color: color-mix(in srgb, var(--text) 80%, transparent); }
+.lab.is-l { border-left: 0; border-right: 1.5px solid var(--accent); justify-items: end; text-align: right; background: linear-gradient(270deg, rgba(3, 5, 13, .8), rgba(3, 5, 13, .2)); }
+.lab--sm.is-l { border-right-color: var(--holo); }
+.lab:hover, .lab.is-on { background: rgba(125, 249, 255, .2); }
+
+.card {
+  position: fixed; z-index: 6; left: 20px; bottom: calc(var(--safe-b) + 100px);
+  width: min(330px, calc(100% - 40px)); padding: 1.1rem 1.2rem 1.2rem; display: grid; gap: .55rem;
+  animation: rise .45s var(--ease);
+}
+@keyframes rise { from { transform: translateY(14px); opacity: 0; filter: brightness(2); } }
+.card__k { margin: 0; font: 300 2.4rem/1 var(--f-jp); color: var(--accent); text-shadow: 0 0 20px var(--accent); }
+.card__name { margin: 0; font: 600 1.05rem/1.1 var(--f-display); text-transform: uppercase; letter-spacing: .04em; }
+.card__geo { margin: 0; font: 400 .66rem/1.3 var(--f-mono); letter-spacing: .1em; color: var(--holo); }
+.card__text { margin: 0; font-size: .9rem; color: color-mix(in srgb, var(--text) 85%, transparent); }
+.card__close { position: absolute; right: 8px; top: 8px; width: 32px; height: 32px; border: 0; background: none; color: var(--mute); font-size: 1.2rem; }
+.card__close:hover { color: var(--text); }
+
+@media (max-width: 760px) {
+  .top { flex-direction: column; gap: 10px; padding-inline: 16px; }
+  .brand { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: .8rem; }
+  .read { grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; }
+  .read > div { min-width: 0; padding: .45rem .6rem; }
+  .read > div:nth-child(5) { display: none; }
+  .read dd { font-size: .82rem; }
+  .panel { top: auto; right: 16px; left: 16px; bottom: calc(var(--safe-b) + 70px); width: auto; }
+  .panel__toggle {
+    display: inline-flex; position: fixed; right: 16px; bottom: calc(var(--safe-b) + 128px);
+    min-height: 38px; padding: .5rem .8rem; border: 1px solid var(--holo); background: rgba(3, 5, 13, .75);
+    font: 500 .64rem/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--holo);
+  }
+  .panel__body { max-height: 56vh; }
+  .panel__close { display: inline-block; }
+  .panel.is-open .panel__toggle { visibility: hidden; }
+  .panel:not(.is-open) .panel__box { display: none; }
+  .hint { bottom: calc(var(--safe-b) + 70px); }
+  .card { left: 16px; bottom: calc(var(--safe-b) + 180px); width: calc(100% - 32px); }
+  .panel.is-open ~ .hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <canvas id="cv" role="img" aria-label="Трёхмерная голограмма Японии из светящихся точек. Перетаскивайте, чтобы вращать, прокручивайте, чтобы приблизить"></canvas>
+  <div class="labels" id="labels"></div>
+</div>
+<div class="scan" aria-hidden="true"></div>
+
+<header class="top">
+  <div class="brand">
+    <a class="back" href="index.html">← MIRAI</a>
+    <div>
+      <p class="eyebrow">未来 · голографический проектор</p>
+      <h1>Япония 360°</h1>
+    </div>
+  </div>
+  <dl class="read holo">
+    <div><dt>Поворот</dt><dd id="r-yaw">0°</dd></div>
+    <div><dt>Наклон</dt><dd id="r-tilt">0°</dd></div>
+    <div><dt>Масштаб</dt><dd id="r-zoom">1.0×</dd></div>
+    <div><dt>Точек</dt><dd id="r-pts">0</dd></div>
+    <div><dt>Кадры/с</dt><dd id="r-fps">—</dd></div>
+  </dl>
+</header>
+
+<aside class="panel" id="panel">
+  <button class="panel__toggle" id="panel-toggle" type="button" aria-expanded="false" aria-controls="panel-box">Слои и цвет</button>
+  <div class="panel__box holo" id="panel-box">
+    <div class="panel__body">
+      <div class="panel__head"><h2>Слои</h2><button class="panel__close" id="panel-close" type="button">Готово</button></div>
+      <div class="group">
+        <label class="sw">Суша и рельеф <input type="checkbox" id="l-land" data-key="land" checked><i></i></label>
+        <label class="sw">Береговая линия <input type="checkbox" id="l-coast" data-key="coast" checked><i></i></label>
+        <label class="sw">Сетка координат <input type="checkbox" id="l-grid" data-key="grid" checked><i></i></label>
+        <label class="sw">Кольца проектора <input type="checkbox" id="l-rings" data-key="rings" checked><i></i></label>
+        <label class="sw">Столбы городов <input type="checkbox" id="l-cities" data-key="cities" checked><i></i></label>
+        <label class="sw">Сканирование <input type="checkbox" id="l-scan" data-key="scan" checked><i></i></label>
+        <label class="sw">Автоповорот <input type="checkbox" id="l-auto" data-key="auto" checked><i></i></label>
+      </div>
+      <div class="group">
+        <p class="group__t" id="relief-t">Высота рельефа</p>
+        <div class="range"><input type="range" id="relief" min="0" max="4" step="0.1" value="1.5" aria-labelledby="relief-t"><output id="relief-out">1.5×</output></div>
+      </div>
+      <fieldset class="group" style="border:0;margin:0;padding:0">
+        <legend class="group__t" style="padding:0;margin-bottom:.5rem">Подписи городов</legend>
+        <div class="seg">
+          <input type="radio" name="labels" id="lb-main" value="main" checked><label for="lb-main">Главные</label>
+          <input type="radio" name="labels" id="lb-all" value="all"><label for="lb-all">Все</label>
+          <input type="radio" name="labels" id="lb-none" value="none"><label for="lb-none">Нет</label>
+        </div>
+      </fieldset>
+      <fieldset class="group" style="border:0;margin:0;padding:0">
+        <legend class="group__t" style="padding:0;margin-bottom:.5rem">Цвет голограммы</legend>
+        <div class="themes" id="themes"></div>
+      </fieldset>
+      <button class="btn btn--block" id="reset" type="button">Сбросить вид</button>
+    </div>
+  </div>
+</aside>
+
+<p class="hint" id="hint">Тяните — вращать · колесо или два пальца — масштаб · двойное нажатие — сброс</p>
+
+<nav class="views holo" id="views" aria-label="Готовые ракурсы">
+  <button type="button" data-view="iso" aria-pressed="true">Обзор</button>
+  <button type="button" data-view="top" aria-pressed="false">Сверху</button>
+  <button type="button" data-view="south" aria-pressed="false">С юга</button>
+  <button type="button" data-view="east" aria-pressed="false">С востока</button>
+  <button type="button" data-view="north" aria-pressed="false">С севера</button>
+  <button type="button" data-view="west" aria-pressed="false">С запада</button>
+  <button type="button" data-view="bottom" aria-pressed="false">Снизу</button>
+</nav>
+
+<section class="card holo" id="card" aria-live="polite" hidden>
+  <button class="card__close" id="card-close" type="button" aria-label="Закрыть и показать всю Японию">×</button>
+  <p class="card__k" id="c-k" aria-hidden="true"></p>
+  <h2 class="card__name" id="c-name"></h2>
+  <p class="card__geo" id="c-geo"></p>
+  <p class="card__text" id="c-text"></p>
+  <button class="btn" id="c-all" type="button">Вся Япония</button>
+</section>
+
+<script src="js/japan-outline.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const TAU = Math.PI * 2;
+  const root = document.documentElement;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const nf = new Intl.NumberFormat('ru-RU');
+
+  const stage = $('#stage'), cv = $('#cv'), ctx = cv.getContext('2d'), labelsEl = $('#labels');
+
+  /* ---------- Геометрия: контур Natural Earth, сетка суши, модель рельефа ---------- */
+  const RINGS = window.MIRAI_JAPAN || [];
+  const LON0 = 136.4, LAT0 = 35.0, K = Math.cos(36 * Math.PI / 180), SC = 1 / 8.5, KM = .032;
+  const wx = lon => (lon - LON0) * K * SC, wz = lat => (lat - LAT0) * SC;
+  const boxes = RINGS.map(r => {
+    let a = 999, b = -999, c = 999, d = -999;
+    for (let i = 0; i < r.length; i += 2) { a = Math.min(a, r[i]); b = Math.max(b, r[i]); c = Math.min(c, r[i + 1]); d = Math.max(d, r[i + 1]); }
+    return [a, b, c, d];
+  });
+  const inside = (lon, lat) => RINGS.some((r, k) => {
+    const bx = boxes[k];
+    if (lon < bx[0] || lon > bx[1] || lat < bx[2] || lat > bx[3]) return false;
+    let c = false;
+    for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) {
+      const xi = r[i], yi = r[i + 1], xj = r[j], yj = r[j + 1];
+      if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) c = !c;
+    }
+    return c;
+  });
+
+  const coast = [];
+  RINGS.forEach(r => {
+    for (let i = 0; i < r.length; i += 2) {
+      const j = (i + 2) % r.length;
+      const x1 = r[i], y1 = r[i + 1], x2 = r[j], y2 = r[j + 1];
+      const n = Math.max(1, Math.round(Math.hypot((x2 - x1) * K, y2 - y1) / .06));
+      for (let k = 0; k < n; k++) coast.push(x1 + (x2 - x1) * k / n, y1 + (y2 - y1) * k / n);
+    }
+  });
+  const CL = new Float32Array(coast);
+  const coastDist = (lon, lat) => {
+    let m = 1e9;
+    for (let i = 0; i < CL.length; i += 2) {
+      const dx = (lon - CL[i]) * K, dy = lat - CL[i + 1], d = dx * dx + dy * dy;
+      if (d < m) m = d;
+    }
+    return Math.sqrt(m);
+  };
+  const gauss = (lon, lat, lo, la, s) => { const dx = (lon - lo) * K, dy = lat - la; return Math.exp(-(dx * dx + dy * dy) / (2 * s * s)); };
+  const ridge = (lon, lat, a, b, s) => {
+    const ax = a[0] * K, ay = a[1], vx = b[0] * K - ax, vy = b[1] - ay, px = lon * K, py = lat;
+    const t = clamp(((px - ax) * vx + (py - ay) * vy) / (vx * vx + vy * vy), 0, 1);
+    const dx = px - (ax + vx * t), dy = py - (ay + vy * t);
+    return Math.exp(-(dx * dx + dy * dy) / (2 * s * s));
+  };
+  // Упрощённая модель высот, км: купол от берега плюс основные горные системы
+  const elev = (lon, lat, d) => {
+    const h = .7 * (1 - Math.exp(-d / .35))
+      + 2.3 * gauss(lon, lat, 137.55, 36.05, .33)               // Японские Альпы
+      + 3.0 * gauss(lon, lat, 138.73, 35.36, .09)               // Фудзи
+      + .9 * ridge(lon, lat, [140.75, 37.3], [140.95, 40.6], .22) // горы Оу
+      + 1.6 * gauss(lon, lat, 142.85, 43.66, .3)                // Дайсэцудзан
+      + 1.1 * ridge(lon, lat, [142.5, 42.2], [143.0, 43.0], .18)  // хребет Хидака
+      + 1.3 * gauss(lon, lat, 133.4, 33.8, .3)                  // горы Сикоку
+      + 1.0 * gauss(lon, lat, 131.1, 32.9, .28)                 // Асо
+      + .9 * gauss(lon, lat, 130.87, 31.93, .2)                 // Киришима
+      + .6 * ridge(lon, lat, [131.8, 34.6], [134.2, 35.2], .25)   // горы Тюгоку
+      + 1.0 * gauss(lon, lat, 135.9, 34.1, .3);                 // полуостров Кии
+    return h * (1 - Math.exp(-d / .12));
+  };
+
+  // Точки: x, z, высота (км), тип: 0 суша, 1 берег, 2 склон Фудзи, 3 нижний контур
+  const raw = [];
+  const push = (lon, lat, e, t) => raw.push(wx(lon), wz(lat), e, t);
+  for (let lat = 24; lat <= 45.8; lat += .11) {
+    for (let lon = 122.8; lon <= 146.2; lon += .11 / K) if (inside(lon, lat)) push(lon, lat, elev(lon, lat, coastDist(lon, lat)), 0);
+  }
+  for (let i = 0; i < CL.length; i += 2) { push(CL[i], CL[i + 1], 0, 1); push(CL[i], CL[i + 1], 0, 3); }
+  const FJ = [138.73, 35.36];
+  for (let r = .015; r <= .34; r += .02) {
+    const n = Math.round(r * 110);
+    for (let k = 0; k < n; k++) {
+      const a = k / n * TAU + r * 7;
+      const lon = FJ[0] + Math.cos(a) * r / K, lat = FJ[1] + Math.sin(a) * r;
+      if (inside(lon, lat)) push(lon, lat, elev(lon, lat, coastDist(lon, lat)), 2);
+    }
+  }
+  const P = new Float32Array(raw);
+  const N = P.length / 4;
+  const sx = new Float32Array(N), sy = new Float32Array(N), ss = new Float32Array(N), sg = new Uint8Array(N);
+  $('#r-pts').textContent = nf.format(N);
+
+  /* ---------- Города ---------- */
+  const CITIES = [
+    { id: 'sapporo', name: 'Саппоро', k: '札幌', lat: 43.06, lon: 141.35, h: .32, main: true, text: 'Столица Хоккайдо: снежный фестиваль в феврале и рамэн с мисо.' },
+    { id: 'niseko', name: 'Нисэко', k: 'ニセコ', lat: 42.80, lon: 140.69, text: 'Горнолыжный курорт с самым сухим пудровым снегом в Японии.' },
+    { id: 'nikko', name: 'Никко', k: '日光', lat: 36.72, lon: 139.70, text: 'Святилище Тосё-гу и водопад Кэгон в горах к северу от Токио.' },
+    { id: 'tokyo', name: 'Токио', k: '東京', lat: 35.68, lon: 139.69, h: .4, main: true, text: 'Столица: неон Синдзюку, храм Сэнсо-дзи и перекрёсток Сибуя.' },
+    { id: 'hakone', name: 'Хаконэ', k: '箱根', lat: 35.23, lon: 139.02, text: 'Горячие источники, озеро Аси и вид на Фудзи.' },
+    { id: 'kanazawa', name: 'Канадзава', k: '金沢', lat: 36.56, lon: 136.65, text: 'Сад Кэнроку-эн и старый квартал гейш Хигаси-тяя.' },
+    { id: 'kyoto', name: 'Киото', k: '京都', lat: 35.01, lon: 135.77, h: .26, main: true, text: 'Тысячи тории Фусими Инари и храмы древней столицы.' },
+    { id: 'osaka', name: 'Осака', k: '大阪', lat: 34.69, lon: 135.50, text: 'Уличная еда Дотонбори и замок Осаки.' },
+    { id: 'nara', name: 'Нара', k: '奈良', lat: 34.69, lon: 135.80, text: 'Олени в парке и Большой Будда храма Тодай-дзи.' },
+    { id: 'hiroshima', name: 'Хиросима', k: '広島', lat: 34.39, lon: 132.46, text: 'Мемориал мира и тории в воде у острова Миядзима.' },
+    { id: 'fukuoka', name: 'Фукуока', k: '福岡', lat: 33.59, lon: 130.40, text: 'Уличные кухни ятай и рамэн тонкоцу.' },
+    { id: 'naha', name: 'Наха', k: '那覇', lat: 26.21, lon: 127.68, h: .3, main: true, text: 'Столица Окинавы: замок Сюри и улица Кокусай-дори.' },
+    { id: 'ishigaki', name: 'Исигаки', k: '石垣', lat: 24.34, lon: 124.16, text: 'Коралловые рифы и манты у островов Яэяма.' },
+  ];
+  CITIES.forEach(c => {
+    c.x = wx(c.lon); c.z = wz(c.lat);
+    c.e = elev(c.lon, c.lat, coastDist(c.lon, c.lat));
+    c.h = c.h || .15;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'lab' + (c.main ? '' : ' lab--sm');
+    b.innerHTML = c.main ? `<b aria-hidden="true">${c.k}</b><span>${c.name}</span>` : `<span>${c.name}</span>`;
+    b.setAttribute('aria-label', `${c.name}: приблизить`);
+    b.addEventListener('click', e => { e.stopPropagation(); focusCity(c); });
+    labelsEl.appendChild(b);
+    c.el = b;
+  });
+
+  /* ---------- Состояние и цвет ---------- */
+  const S = { land: true, coast: true, grid: true, rings: true, cities: true, scan: !reduced, auto: !reduced, labels: 'main', relief: 1.5, theme: 'holo' };
+  const THEMES = {
+    holo: { name: 'Бирюза', c: ['#2FB8FF', '#7DF9FF', '#E6FFFF', '#BFFBFF', '#3A7BFF'], acc: '#FF9160', rgb: '125,249,255' },
+    sakura: { name: 'Сакура', c: ['#FF4FA3', '#FF9BD2', '#FFE8F4', '#FFC4E4', '#B04FFF'], acc: '#7DF9FF', rgb: '255,155,210' },
+    momiji: { name: 'Момидзи', c: ['#FF5A3C', '#FFA05A', '#FFF0D8', '#FFD2A8', '#C23A2A'], acc: '#7DF9FF', rgb: '255,145,96' },
+    ice: { name: 'Лёд', c: ['#4F7BFF', '#9FE8FF', '#FFFFFF', '#D8F6FF', '#6A5CFF'], acc: '#FF9BD2', rgb: '159,232,255' },
+  };
+  $('#themes').innerHTML = Object.entries(THEMES).map(([id, t]) =>
+    `<input type="radio" name="theme" id="th-${id}" value="${id}"${id === S.theme ? ' checked' : ''}><label for="th-${id}" style="--c:${t.c[1]}"><span style="background:linear-gradient(90deg,${t.c[0]},${t.c[1]},${t.c[2]})"></span>${t.name}</label>`
+  ).join('');
+  const applyTheme = id => {
+    S.theme = id;
+    root.style.setProperty('--holo', THEMES[id].c[1]);
+    root.style.setProperty('--accent', THEMES[id].acc);
+  };
+  applyTheme(S.theme);
+  $$('#panel input[data-key]').forEach(inp => {
+    inp.checked = S[inp.dataset.key];
+    inp.addEventListener('change', () => { S[inp.dataset.key] = inp.checked; });
+  });
+  const relief = $('#relief'), reliefOut = $('#relief-out');
+  relief.addEventListener('input', () => { S.relief = +relief.value; reliefOut.textContent = S.relief.toFixed(1) + '×'; });
+  $$('input[name="labels"]').forEach(r => r.addEventListener('change', () => { S.labels = r.value; }));
+  $$('input[name="theme"]').forEach(r => r.addEventListener('change', () => applyTheme(r.value)));
+  const panel = $('#panel'), ptog = $('#panel-toggle');
+  const setPanel = open => {
+    panel.classList.toggle('is-open', open);
+    ptog.setAttribute('aria-expanded', String(open));
+  };
+  ptog.addEventListener('click', () => setPanel(!panel.classList.contains('is-open')));
+  $('#panel-close').addEventListener('click', () => { setPanel(false); ptog.focus(); });
+
+  /* ---------- Камера ---------- */
+  const D0 = 3.6;
+  const VIEWS = {
+    iso: { yaw: -.55, tilt: .72 },
+    top: { yaw: 0, tilt: 1.5 },
+    south: { yaw: 0, tilt: .1 },
+    east: { yaw: -Math.PI / 2, tilt: .1 },
+    north: { yaw: Math.PI, tilt: .1 },
+    west: { yaw: Math.PI / 2, tilt: .1 },
+    bottom: { yaw: 0, tilt: -1.35 },
+  };
+  const cam = { yaw: VIEWS.iso.yaw, tilt: VIEWS.iso.tilt, dist: D0, tx: 0, tz: 0 };
+  const goal = { ...cam };
+  let vYaw = 0, vTilt = 0, focused = null;
+  const angDiff = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
+  const setPressed = id => $$('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === id)));
+  const setView = id => {
+    const v = VIEWS[id];
+    goal.yaw = cam.yaw + angDiff(v.yaw, cam.yaw);
+    goal.tilt = v.tilt; goal.dist = D0; goal.tx = 0; goal.tz = 0;
+    vYaw = vTilt = 0;
+    setPressed(id);
+    unfocus();
+  };
+  $$('#views button').forEach(b => b.addEventListener('click', () => {
+    setView(b.dataset.view);
+    if (b.dataset.view !== 'iso') { S.auto = false; $('#l-auto').checked = false; }
+  }));
+  $('#reset').addEventListener('click', () => setView('iso'));
+
+  const card = $('#card');
+  function focusCity(c) {
+    focused = c;
+    goal.tx = c.x; goal.tz = c.z; goal.dist = 1.5;
+    goal.tilt = clamp(goal.tilt, .35, 1.2);
+    S.auto = false; $('#l-auto').checked = false;
+    setPressed(null);
+    $('#c-k').textContent = c.k;
+    $('#c-name').textContent = c.name;
+    $('#c-geo').textContent = `${c.lat.toFixed(2)}° с. ш. · ${c.lon.toFixed(2)}° в. д.`;
+    $('#c-text').textContent = c.text;
+    card.hidden = false;
+    CITIES.forEach(x => x.el.classList.toggle('is-on', x === c));
+  }
+  function unfocus() {
+    focused = null;
+    card.hidden = true;
+    CITIES.forEach(x => x.el.classList.remove('is-on'));
+  }
+  $('#card-close').addEventListener('click', () => setView('iso'));
+  $('#c-all').addEventListener('click', () => setView('iso'));
+
+  /* ---------- Управление: мышь, палец, щипок, колесо, клавиши ---------- */
+  const ptrs = new Map();
+  let pinch = 0, dragDist = 0, lastTap = 0, lastTapX = 0, lastTapY = 0, lastMove = 0;
+  stage.addEventListener('pointerdown', e => {
+    if (e.target.closest('.lab')) return;
+    if (panel.classList.contains('is-open')) setPanel(false);
+    stage.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    dragDist = 0; vYaw = vTilt = 0; pinch = 0;
+    stage.classList.add('is-drag');
+  });
+  stage.addEventListener('pointermove', e => {
+    const p = ptrs.get(e.pointerId);
+    if (!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinch) goal.dist = clamp(goal.dist * pinch / d, 1.1, 9);
+      pinch = d;
+      dragDist += 10;
+      return;
+    }
+    dragDist += Math.abs(dx) + Math.abs(dy);
+    const now = performance.now(), dt = Math.max(8, now - lastMove) / 1000;
+    lastMove = now;
+    goal.yaw += dx * .006;
+    goal.tilt = clamp(goal.tilt + dy * .006, -1.5, 1.5);
+    vYaw = clamp(dx * .006 / dt, -6, 6);
+    vTilt = clamp(dy * .006 / dt, -4, 4);
+    if (dragDist > 4) setPressed(null);
+  });
+  const up = e => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.delete(e.pointerId);
+    pinch = 0;
+    if (!ptrs.size) stage.classList.remove('is-drag');
+    if (performance.now() - lastMove > 90) { vYaw = 0; vTilt = 0; }
+    if (dragDist < 6) {
+      const now = performance.now();
+      if (now - lastTap < 320 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 30) { setView('iso'); lastTap = 0; }
+      else { lastTap = now; lastTapX = e.clientX; lastTapY = e.clientY; }
+    }
+  };
+  stage.addEventListener('pointerup', up);
+  stage.addEventListener('pointercancel', up);
+  stage.addEventListener('wheel', e => {
+    e.preventDefault();
+    goal.dist = clamp(goal.dist * Math.exp(e.deltaY * .0012), 1.1, 9);
+  }, { passive: false });
+  window.addEventListener('keydown', e => {
+    if (e.target.closest('input, button') && e.key !== 'Escape') return;
+    const keys = { ArrowLeft: () => { goal.yaw -= .2; }, ArrowRight: () => { goal.yaw += .2; }, ArrowUp: () => { goal.tilt = clamp(goal.tilt - .12, -1.5, 1.5); }, ArrowDown: () => { goal.tilt = clamp(goal.tilt + .12, -1.5, 1.5); } };
+    if (keys[e.key]) { e.preventDefault(); keys[e.key](); setPressed(null); return; }
+    if (e.key === '+' || e.key === '=') goal.dist = clamp(goal.dist / 1.2, 1.1, 9);
+    else if (e.key === '-') goal.dist = clamp(goal.dist * 1.2, 1.1, 9);
+    else if (e.key === 'r' || e.key === 'к' || e.key === 'Escape') setView('iso');
+    else if (e.key === ' ') { e.preventDefault(); S.auto = !S.auto; $('#l-auto').checked = S.auto; }
+    else if (/^[1-7]$/.test(e.key)) setView(Object.keys(VIEWS)[+e.key - 1]);
+  });
+
+  /* ---------- Отрисовка ---------- */
+  let W = 0, H = 0, dpr = 1, SZ = 1, cx = 0, cy = 0;
+  const resize = () => {
+    W = window.innerWidth; H = window.innerHeight;
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    SZ = W < 760 ? Math.min(W * .45, H * .3) : Math.min(W * .4, H * .38);
+    cx = W / 2; cy = H * (W < 760 ? .55 : .54);
+    CITIES.forEach(c => { c.w = 0; });
+  };
+  window.addEventListener('resize', resize);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(resize);
+
+  let cs = 1, sn = 0, ct = 1, st = 0;
+  const out = new Float32Array(4);
+  const proj = (x, y, z) => {
+    const x1 = x - cam.tx, z1 = z - cam.tz;
+    const X = x1 * cs - z1 * sn, Z = x1 * sn + z1 * cs;
+    const upv = y * ct + Z * st, depth = Z * ct - y * st;
+    const den = cam.dist + depth;
+    out[2] = depth;
+    if (den < .15) { out[0] = NaN; return out; }
+    const f = SZ * D0 / den;
+    out[0] = cx + X * f; out[1] = cy - upv * f; out[3] = D0 / den;
+    return out;
+  };
+  const line3 = pts => {
+    ctx.beginPath();
+    let pen = false;
+    for (let i = 0; i < pts.length; i += 3) {
+      const p = proj(pts[i], pts[i + 1], pts[i + 2]);
+      if (Number.isNaN(p[0])) { pen = false; continue; }
+      if (pen) ctx.lineTo(p[0], p[1]); else { ctx.moveTo(p[0], p[1]); pen = true; }
+    }
+    ctx.stroke();
+  };
+
+  // Статичные линии: сетка координат и кольца
+  const GRID = [];
+  for (let lat = 24; lat <= 46; lat += 2) { const l = []; for (let lon = 122; lon <= 147; lon += 1) l.push(wx(lon), 0, wz(lat)); GRID.push(l); }
+  for (let lon = 122; lon <= 147; lon += 2) { const l = []; for (let lat = 24; lat <= 46; lat += 1) l.push(wx(lon), 0, wz(lat)); GRID.push(l); }
+  const circle = (r, y, n = 120) => { const l = []; for (let k = 0; k <= n; k++) { const a = k / n * TAU; l.push(Math.cos(a) * r, y, Math.sin(a) * r); } return l; };
+  const RING_Y = -.07;
+  const RINGS3 = [[circle(1.28, RING_Y), .3, []], [circle(1.4, RING_Y), .2, [16, 10]], [circle(1.05, RING_Y), .1, [2, 6]]];
+  const CARD = [['С', 0, 1.55], ['Ю', 0, -1.55], ['В', 1.55, 0], ['З', -1.55, 0]];
+
+  let last = 0, fps = 60, frame = 0;
+  const draw = t => {
+    const dt = Math.min(.05, (t - (last || t)) / 1000);
+    last = t;
+    frame++;
+    if (dt > 0) fps = fps * .92 + (1 / dt) * .08;
+
+    // Движение камеры: инерция, автоповорот, плавное догоняние цели
+    if (!ptrs.size) {
+      goal.yaw += vYaw * dt; goal.tilt = clamp(goal.tilt + vTilt * dt, -1.5, 1.5);
+      const damp = Math.exp(-dt * 3.5);
+      vYaw *= damp; vTilt *= damp;
+      if (S.auto) goal.yaw += .16 * dt;
+    }
+    const k = 1 - Math.exp(-dt * 8);
+    cam.yaw += angDiff(goal.yaw, cam.yaw) * k;
+    cam.tilt += (goal.tilt - cam.tilt) * k;
+    cam.dist += (goal.dist - cam.dist) * k;
+    cam.tx += (goal.tx - cam.tx) * k;
+    cam.tz += (goal.tz - cam.tz) * k;
+    cs = Math.cos(cam.yaw); sn = Math.sin(cam.yaw); ct = Math.cos(cam.tilt); st = Math.sin(cam.tilt);
+
+    const T = THEMES[S.theme];
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineWidth = 1;
+
+    if (S.grid) {
+      ctx.strokeStyle = `rgba(${T.rgb},.07)`;
+      ctx.setLineDash([]);
+      GRID.forEach(line3);
+    }
+    if (S.rings) {
+      RINGS3.forEach(([pts, a, dash]) => {
+        ctx.setLineDash(dash);
+        ctx.lineDashOffset = -t / 50;
+        ctx.strokeStyle = `rgba(${T.rgb},${a})`;
+        line3(pts);
+      });
+      ctx.setLineDash([]);
+      ctx.strokeStyle = `rgba(${T.rgb},.35)`;
+      ctx.beginPath();
+      for (let i = 0; i < 72; i++) {
+        const a = i / 72 * TAU, r2 = i % 6 ? 1.33 : 1.36;
+        const p1 = proj(Math.cos(a) * 1.28, RING_Y, Math.sin(a) * 1.28);
+        if (Number.isNaN(p1[0])) continue;
+        const x1 = p1[0], y1 = p1[1];
+        const p2 = proj(Math.cos(a) * r2, RING_Y, Math.sin(a) * r2);
+        if (Number.isNaN(p2[0])) continue;
+        ctx.moveTo(x1, y1); ctx.lineTo(p2[0], p2[1]);
+      }
+      ctx.stroke();
+      ctx.font = '600 12px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      CARD.forEach(([ch, x, z]) => {
+        const p = proj(x, RING_Y, z);
+        if (Number.isNaN(p[0])) return;
+        ctx.fillStyle = ch === 'С' ? T.acc : `rgba(${T.rgb},.8)`;
+        ctx.fillText(ch, p[0], p[1]);
+      });
+    }
+
+    // Облако точек: цвет по высоте, яркость по глубине, вспышка на линии сканирования
+    const scanZ = S.scan ? ((t / 5600) % 1) * 2.7 - 1.35 : 99;
+    const rel = S.relief * KM;
+    for (let i = 0; i < N; i++) {
+      const o = i * 4, type = P[o + 3];
+      if ((type === 0 || type === 2) && !S.land) { sg[i] = 255; continue; }
+      if ((type === 1 || type === 3) && !S.coast) { sg[i] = 255; continue; }
+      const e = P[o + 2];
+      const y = type === 3 ? -.018 : type === 1 ? 0 : e * rel;
+      const p = proj(P[o], y, P[o + 1]);
+      if (Number.isNaN(p[0]) || p[0] < -20 || p[0] > W + 20 || p[1] < -20 || p[1] > H + 20) { sg[i] = 255; continue; }
+      let a = clamp(.62 - p[2] * .32, .14, 1);
+      if (Math.abs(P[o + 1] - scanZ) < .035) a = 1;
+      let col;
+      if (type === 1) col = 3;
+      else if (type === 3) { col = 4; a *= .55; }
+      else if (type === 2 && e > 2.9) col = 5;
+      else col = e < .55 ? 0 : e < 1.5 ? 1 : 2;
+      sx[i] = p[0]; sy[i] = p[1];
+      ss[i] = Math.min(4.5, (type === 2 ? 1.8 : type === 1 ? 1.6 : type === 3 ? 1.1 : 1.45) * p[3]);
+      sg[i] = col * 4 + Math.min(3, (a * 4) | 0);
+    }
+    const COLS = [T.c[0], T.c[1], T.c[2], T.c[3], T.c[4], T.acc];
+    for (let g = 0; g < 24; g++) {
+      ctx.fillStyle = COLS[(g / 4) | 0];
+      ctx.globalAlpha = .2 + (g % 4) * .27;
+      for (let i = 0; i < N; i++) {
+        if (sg[i] !== g) continue;
+        const s = ss[i];
+        ctx.fillRect(sx[i] - s / 2, sy[i] - s / 2, s, s);
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    if (S.scan && Math.abs(scanZ) < 1.3) {
+      const a = proj(-1.25, 0, scanZ);
+      if (!Number.isNaN(a[0])) {
+        const ax = a[0], ay = a[1];
+        const b = proj(1.25, 0, scanZ);
+        if (!Number.isNaN(b[0])) {
+          const gr = ctx.createLinearGradient(ax, ay, b[0], b[1]);
+          gr.addColorStop(0, `rgba(${T.rgb},0)`); gr.addColorStop(.5, `rgba(${T.rgb},.6)`); gr.addColorStop(1, `rgba(${T.rgb},0)`);
+          ctx.strokeStyle = gr; ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(b[0], b[1]); ctx.stroke();
+          ctx.lineWidth = 1;
+        }
+      }
+    }
+
+    // Столбы света над городами
+    if (S.cities) {
+      CITIES.forEach(c => {
+        const y0 = c.e * rel;
+        const a = proj(c.x, y0, c.z);
+        if (Number.isNaN(a[0])) return;
+        const ax = a[0], ay = a[1];
+        const b = proj(c.x, y0 + c.h, c.z);
+        if (Number.isNaN(b[0])) return;
+        const col = c.main ? T.acc : T.c[1];
+        const gr = ctx.createLinearGradient(ax, ay, b[0], b[1]);
+        gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.strokeStyle = gr; ctx.lineWidth = c.main ? 2 : 1.2;
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(b[0], b[1]); ctx.stroke();
+        const ph = (((t / 1500 + c.x) % 1) + 1) % 1;
+        ctx.globalAlpha = 1 - ph;
+        ctx.strokeStyle = col; ctx.lineWidth = 1;
+        line3(circle(.012 + ph * .05, y0, 20).map((v, i) => i % 3 === 0 ? v + c.x : i % 3 === 2 ? v + c.z : v));
+        ctx.globalAlpha = 1;
+      });
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    // Подписи
+    CITIES.forEach(c => {
+      const show = S.labels === 'all' || (S.labels === 'main' && (c.main || c === focused));
+      const p = proj(c.x, c.e * rel + (S.cities ? c.h : .02), c.z);
+      if (!show || Number.isNaN(p[0])) { c.el.hidden = true; return; }
+      c.el.hidden = false;
+      if (!c.w) { c.w = c.el.offsetWidth; c.hh = c.el.offsetHeight; }
+      const left = p[0] < cx;
+      const x = clamp(left ? p[0] - c.w - 4 : p[0] + 4, 4, W - c.w - 4);
+      const y = clamp(p[1] - c.hh, 4, H - c.hh - 4);
+      c.el.classList.toggle('is-l', left);
+      c.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      c.el.style.opacity = p[2] > .6 ? '.45' : '1';
+      c.el.style.zIndex = String(200 - Math.round(p[2] * 60));
+    });
+
+    if (frame % 6 === 0) {
+      const deg = v => Math.round(v * 180 / Math.PI);
+      $('#r-yaw').textContent = `${((deg(cam.yaw) % 360) + 360) % 360}°`;
+      $('#r-tilt').textContent = `${deg(cam.tilt)}°`;
+      $('#r-zoom').textContent = `${(D0 / cam.dist).toFixed(1)}×`;
+      $('#r-fps').textContent = String(Math.round(fps));
+    }
+  };
+
+  let raf = 0;
+  const loop = t => { draw(t); raf = document.hidden ? 0 : requestAnimationFrame(loop); };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && !raf) raf = requestAnimationFrame(loop); });
+  resize();
+  raf = requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
