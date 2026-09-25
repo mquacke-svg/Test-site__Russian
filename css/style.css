@@ -463,7 +463,7 @@ kbd {
 
 @media (max-width: 900px) {
   .hero { justify-content: flex-start; }
-  .holo3d { position: relative; right: auto; top: auto; bottom: auto; width: 100%; height: min(100vw, 430px); z-index: 0; }
+  .holo3d { position: relative; right: auto; top: auto; bottom: auto; width: 100%; height: min(100vw, 430px); margin-bottom: .75rem; z-index: 0; }
   .holo3d__hint { right: 50%; bottom: 2px; transform: translateX(50%); white-space: nowrap; }
   .htag { padding: .3rem .45rem .35rem; font-size: .56rem; gap: .12rem; }
   .htag b { font-size: .8rem; }
