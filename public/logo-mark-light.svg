@@ -1,0 +1,22 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" color="#FAF6F0" role="img" aria-labelledby="jaMarkLightTitle">
+  <title id="jaMarkLightTitle">Жак-Андрэ — эмблема с Эйфелевой башней</title>
+
+  <!-- Круглая обводка. currentColor → перекрашивается из CSS при инлайн-вставке -->
+  <circle cx="60" cy="60" r="56" fill="none" stroke="currentColor" stroke-width="2.5" opacity="0.3"/>
+
+  <!-- Эйфелева башня: контурный силуэт -->
+  <g fill="none" stroke="#E0574C" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Шпиль -->
+    <path d="M60 20 L60 29"/>
+    <!-- Ноги с характерным изгибом -->
+    <path d="M56 29 C55.4 42 51 63 43 84 C40.2 91.5 37.6 95.6 35.4 98"/>
+    <path d="M64 29 C64.6 42 69 63 77 84 C79.8 91.5 82.4 95.6 84.6 98"/>
+    <!-- Площадки -->
+    <path d="M53 49 L67 49"/>
+    <path d="M46 71 L74 71"/>
+    <!-- Опорная арка -->
+    <path d="M41.6 89 C47.2 76 72.8 76 78.4 89"/>
+    <!-- Центральная стойка -->
+    <path d="M60 49 L60 71" stroke-width="2" opacity="0.7"/>
+  </g>
+</svg>

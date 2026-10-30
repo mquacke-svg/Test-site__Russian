@@ -1,0 +1,76 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 120" width="440" height="120" color="#FAF6F0" role="img" aria-labelledby="jaLogoLightTitle jaLogoLightDesc">
+  <title id="jaLogoLightTitle">Жак-Андрэ — французская пекарня</title>
+  <desc id="jaLogoLightDesc">Круглая эмблема с силуэтом Эйфелевой башни, каллиграфической подписью и названием пекарни</desc>
+
+  <!-- ===================== ЭМБЛЕМА ===================== -->
+  <g>
+    <circle cx="60" cy="60" r="56" fill="none" stroke="currentColor" stroke-width="2.5" opacity="0.3"/>
+
+    <!-- Эйфелева башня -->
+    <g fill="none" stroke="#E0574C" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M60 20 L60 29"/>
+      <path d="M56 29 C55.4 42 51 63 43 84 C40.2 91.5 37.6 95.6 35.4 98"/>
+      <path d="M64 29 C64.6 42 69 63 77 84 C79.8 91.5 82.4 95.6 84.6 98"/>
+      <path d="M53 49 L67 49"/>
+      <path d="M46 71 L74 71"/>
+      <path d="M41.6 89 C47.2 76 72.8 76 78.4 89"/>
+      <path d="M60 49 L60 71" stroke-width="1.8" opacity="0.7"/>
+    </g>
+
+    <!-- Каллиграфическая подпись «Жак-Андрэ», обвивающая башню -->
+    <g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Ж -->
+      <path d="M25 60.5 C28.5 54 34.5 51 37.5 53.5 C40 55.6 38 60.5 34 63 C30.6 65.1 27 65 25.6 63.2"/>
+      <path d="M38.5 47.5 C37.2 55.5 36.8 62 37.4 69.5"/>
+      <path d="M38.2 59 C42 54.5 46.5 50.8 50.5 48.8"/>
+      <!-- а -->
+      <path d="M50 60 C52.6 55.6 56.6 55.6 57.2 58.8 C57.8 61.8 55.4 65.4 52.6 65.4 C50.8 65.4 50.2 63.8 51 61.8"/>
+      <path d="M57.2 58.4 C56.6 62.2 57.2 64.8 59.2 65.8"/>
+      <!-- к с длинным росчерком -->
+      <path d="M65 48 C63.8 54.6 63.6 60 64 65.6"/>
+      <path d="M64 58.6 C68.6 54.6 73.6 50.6 78.6 48.4"/>
+      <path d="M64.4 59.4 C68.6 61.6 72.6 64.6 76 68.4 C79.6 72.4 83.8 73.6 88 71.6"/>
+    </g>
+
+    <!-- «Андрэ» — второй ярус подписи -->
+    <g fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+      <!-- А -->
+      <path d="M50 90 C52.4 84.4 55.2 80.4 57 81 C58.4 81.5 58.6 85.4 58 90.4"/>
+      <path d="M52.4 87 C54.6 86.4 56.8 86.4 58.4 87"/>
+      <!-- н -->
+      <path d="M61.6 82.6 C61.2 85.8 61.2 88.2 61.6 90.6"/>
+      <path d="M61.8 86.6 C64 86 66 86 67.6 86.6"/>
+      <path d="M67.8 82.6 C67.4 85.8 67.4 88.2 67.8 90.6"/>
+      <!-- д с хвостом -->
+      <path d="M71.4 86.6 C73.2 84.2 76.2 84.4 76.6 86.8 C77 89.4 74.6 91.8 72.4 91.4 C71.2 91.2 70.8 89.8 71.4 88.4"/>
+      <path d="M76.6 86.4 C76 90 75.6 92.8 75.2 95.6"/>
+      <!-- р -->
+      <path d="M80.4 85.4 C80 89.4 79.6 92.4 79.2 95.4"/>
+      <path d="M80.4 86.4 C82.4 84 85.4 84.6 85.4 87 C85.4 89.2 83 90.8 80.4 90.4"/>
+      <!-- э + финальный росчерк -->
+      <path d="M88 85.6 C90.2 84 93 85 93 87.2 C93 89.4 90.6 90.8 88.4 90.2"/>
+      <path d="M89.6 87.6 C91.2 87.6 92.4 87.6 93.2 87.6" stroke-width="1.7"/>
+      <path d="M93.4 89.6 C95.6 89.6 97.6 89.2 99 88.4" stroke-width="1.7"/>
+    </g>
+
+    <!-- Разделительная линия и микро-подпись -->
+    <g fill="currentColor">
+      <rect x="27" y="100" width="66" height="0.9" rx="0.45" opacity="0.4"/>
+      <text x="60" y="109" text-anchor="middle"
+            font-family="'Helvetica Neue',Arial,sans-serif"
+            font-size="5.8" letter-spacing="1.5" opacity="0.62">ПЕКАРЬ-КОНДИТЕР</text>
+    </g>
+  </g>
+
+  <!-- ===================== НАЗВАНИЕ ===================== -->
+  <g>
+    <text x="140" y="61"
+          font-family="'Montserrat','Helvetica Neue',Arial,sans-serif"
+          font-size="39" font-weight="800" letter-spacing="1.5"
+          fill="currentColor">ЖАК-АНДРЭ</text>
+    <text x="143" y="88"
+          font-family="'Montserrat','Helvetica Neue',Arial,sans-serif"
+          font-size="17.5" font-weight="400" letter-spacing="2.4"
+          fill="#E0574C">французская пекарня</text>
+  </g>
+</svg>

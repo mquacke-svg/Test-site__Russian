@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1792960513773,
+      "tag": "0000_amazing_tomorrow_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793386299590,
+      "tag": "0001_funny_stardust",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793386996065,
+      "tag": "0002_clever_ender_wiggin",
+      "breakpoints": true
+    }
+  ]
+}
