@@ -17,7 +17,10 @@ export default function Account() {
     if (!session) return;
     const load = () =>
       api<Order[]>("orders")
-        .then(setOrders)
+        .then((value) => {
+          setOrders(value);
+          setError("");
+        })
         .catch((e) => setError(e.message));
     void load();
     const timer = setInterval(load, 15000);
@@ -32,6 +35,7 @@ export default function Account() {
           : "В этом браузере нет новых гостевых заказов.",
       );
       setOrders(await api<Order[]>("orders"));
+      setError("");
     } catch (e) {
       setError((e as Error).message);
     }

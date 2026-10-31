@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -37,7 +38,14 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
     [open, setOpen] = useState(false),
     [notice, setNotice] = useState(""),
     [error, setError] = useState("");
-  const refresh = useCallback(async () => {
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const mutationPending = useRef(false);
+  const enqueue = useCallback(<T,>(operation: () => Promise<T>): Promise<T> => {
+    const result = queue.current.then(operation);
+    queue.current = result.then(() => undefined, () => undefined);
+    return result;
+  }, []);
+  const refresh = useCallback(() => enqueue(async () => {
     try {
       setCart(await api<Cart>("cart"));
       setError("");
@@ -46,7 +54,7 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }), [enqueue]);
   useEffect(() => {
     void refresh();
     const focus = () => {
@@ -62,16 +70,23 @@ export default function ShopProvider({ children }: { children: ReactNode }) {
     }
   }, [notice]);
   const mutate = async (body: unknown) => {
+    if (loading || mutationPending.current) return false;
+    mutationPending.current = true;
     setBusy(true);
     try {
-      setCart(await api<Cart>("cart", body));
-      setError("");
-      return true;
-    } catch (e) {
-      setError((e as Error).message);
-      setNotice((e as Error).message);
-      return false;
+      return await enqueue(async () => {
+        try {
+          setCart(await api<Cart>("cart", body));
+          setError("");
+          return true;
+        } catch (e) {
+          setError((e as Error).message);
+          setNotice((e as Error).message);
+          return false;
+        }
+      });
     } finally {
+      mutationPending.current = false;
       setBusy(false);
     }
   };

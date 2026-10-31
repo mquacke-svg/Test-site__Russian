@@ -1,38 +1,9 @@
-export type Category = {
-  id: string;
-  name: string;
-  tagline: string;
-  emoji: string;
-};
-export type Variant = {
-  id: string;
-  productId: string;
-  label: string;
-  volumeMl: number;
-  price: number;
-};
-export type Product = {
-  id: string;
-  name: string;
-  description: string | null;
-  category: string;
-  price: number | null;
-  image: string | null;
-  available: boolean;
-  stock: number | null;
-  isBestseller: boolean;
-  isSeasonal: boolean;
-  variants: Variant[];
-};
-export type Location = {
-  id: string;
-  title: string;
-  address: string;
-  city: string;
-  phone: string | null;
-  phoneRaw: string | null;
-  hours: string;
-};
+import type { category, location, product, variant } from "./schema";
+
+export type Category = typeof category.$inferSelect;
+export type Variant = typeof variant.$inferSelect;
+export type Product = typeof product.$inferSelect & { variants: Variant[] };
+export type Location = typeof location.$inferSelect;
 export type DeliverySettings = {
   fee: number;
   freeFrom: number;
@@ -86,9 +57,11 @@ export const statusLabels: Record<string, string> = {
   completed: "Завершён",
   cancelled: "Отменён",
 };
+const wholeRubleFormatter = new Intl.NumberFormat("ru-RU", {
+  style: "currency", currency: "RUB", maximumFractionDigits: 0,
+});
+const fractionalRubleFormatter = new Intl.NumberFormat("ru-RU", {
+  style: "currency", currency: "RUB", maximumFractionDigits: 2,
+});
 export const money = (kopecks: number) =>
-  new Intl.NumberFormat("ru-RU", {
-    style: "currency",
-    currency: "RUB",
-    maximumFractionDigits: kopecks % 100 ? 2 : 0,
-  }).format(kopecks / 100);
+  (kopecks % 100 ? fractionalRubleFormatter : wholeRubleFormatter).format(kopecks / 100);

@@ -15,12 +15,22 @@ export default function MenuCatalog({
   useEffect(() => {
     const set = () => {
       const id = window.location.hash.slice(1);
-      if (categories.some((c) => c.id === id)) setFilter(id);
+      setFilter(categories.some((c) => c.id === id) ? id : "all");
     };
     set();
     window.addEventListener("hashchange", set);
-    return () => window.removeEventListener("hashchange", set);
+    window.addEventListener("popstate", set);
+    return () => {
+      window.removeEventListener("hashchange", set);
+      window.removeEventListener("popstate", set);
+    };
   }, [categories]);
+  const selectFilter = (id: string) => {
+    const url = new URL(window.location.href);
+    url.hash = id === "all" ? "" : id;
+    if (url.href !== window.location.href) window.history.pushState(null, "", url);
+    setFilter(id);
+  };
   const shown = products.filter(
     (p) =>
       (filter === "all" || p.category === filter) &&
@@ -44,7 +54,7 @@ export default function MenuCatalog({
           <button
             className={filter === "all" ? "filter active" : "filter"}
             aria-pressed={filter === "all"}
-            onClick={() => setFilter("all")}
+            onClick={() => selectFilter("all")}
           >
             Всё меню
           </button>
@@ -53,7 +63,7 @@ export default function MenuCatalog({
               key={c.id}
               className={filter === c.id ? "filter active" : "filter"}
               aria-pressed={filter === c.id}
-              onClick={() => setFilter(c.id)}
+              onClick={() => selectFilter(c.id)}
             >
               {c.name}
             </button>
@@ -94,7 +104,7 @@ export default function MenuCatalog({
             className="button"
             onClick={() => {
               setSearch("");
-              setFilter("all");
+              selectFilter("all");
             }}
           >
             Показать всё меню

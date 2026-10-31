@@ -8,19 +8,19 @@ import { useShop } from "./ShopProvider";
 import Modal from "./Modal";
 export default function ProductCard({
   product: p,
-  priority = false,
 }: {
   product: Product;
-  priority?: boolean;
 }) {
   const [open, setOpen] = useState(false),
-    [variantId, setVariantId] = useState(p.variants[0]?.id || "");
-  const { mutate, busy, toast } = useShop();
+    [variantId, setVariantId] = useState(p.variants[0]?.id || ""),
+    [addFailed, setAddFailed] = useState(false);
+  const { mutate, busy, loading, toast, error } = useShop();
   const selected = p.variants.find((v) => v.id === variantId);
   const price = p.variants.length
     ? Math.min(...p.variants.map((v) => v.price))
     : p.price;
   const add = async () => {
+    setAddFailed(false);
     if (
       await mutate({
         action: "add",
@@ -31,14 +31,18 @@ export default function ProductCard({
     ) {
       toast(`${p.name} — в корзине`);
       setOpen(false);
-    }
+    } else setAddFailed(true);
+  };
+  const openDetails = () => {
+    setAddFailed(false);
+    setOpen(true);
   };
   return (
     <>
       <article className="product-card">
         <button
           className="product-photo"
-          onClick={() => setOpen(true)}
+          onClick={openDetails}
           aria-label={`Подробнее: ${p.name}`}
         >
           {p.image ? (
@@ -46,7 +50,6 @@ export default function ProductCard({
               src={p.image}
               alt=""
               fill
-              priority={priority}
               sizes="(max-width: 600px) 50vw, (max-width: 1000px) 33vw, 300px"
               className="object-cover"
             />
@@ -64,7 +67,7 @@ export default function ProductCard({
           </span>
         </button>
         <div className="product-info">
-          <button className="product-name" onClick={() => setOpen(true)}>
+          <button className="product-name" onClick={openDetails}>
             {p.name}
           </button>
           {(p.variants.length > 0 || p.isSeasonal) && (
@@ -74,7 +77,7 @@ export default function ProductCard({
                 : "Сезонная выпечка"}
             </p>
           )}
-          {p.stock !== null && <p>{p.stock > 0 ? `В наличии: ${p.stock} шт.` : "Нет в наличии"}</p>}
+          {p.stock === 0 && <p>Нет в наличии</p>}
           <div className="product-bottom">
             <strong>
               {price === null
@@ -83,16 +86,16 @@ export default function ProductCard({
             </strong>
             <button
               className="add-button"
-              disabled={busy || !p.available || p.stock === 0 || price === null}
+              disabled={loading || busy || !p.available || p.stock === 0 || price === null}
               aria-label={`Добавить в корзину: ${p.name}`}
-              onClick={() => (p.variants.length ? setOpen(true) : void add())}
+              onClick={() => (p.variants.length ? openDetails() : void add())}
             >
               <Plus size={18} />
             </button>
           </div>
         </div>
       </article>
-      <Modal open={open} onClose={() => setOpen(false)} title={p.name}>
+      {open && <Modal open={open} onClose={() => setOpen(false)} title={p.name}>
         <div className="product-detail">
           {p.image && (
             <div className="detail-photo">
@@ -106,7 +109,7 @@ export default function ProductCard({
             </div>
           )}
           <p>{p.description || "Свежая выпечка из нашей пекарни."}</p>
-          {p.stock !== null && <p>{p.stock > 0 ? `В наличии: ${p.stock} шт.` : "Нет в наличии"}</p>}
+          {p.stock === 0 && <p>Нет в наличии</p>}
           {p.variants.length > 0 && (
             <fieldset className="variant-picker">
               <legend>Выберите объём</legend>
@@ -127,9 +130,10 @@ export default function ProductCard({
               ))}
             </fieldset>
           )}
+          {addFailed && error && <p className="error" role="alert">{error}</p>}
           <button
             className="button full-width"
-            disabled={busy || !p.available || p.stock === 0 || price === null}
+            disabled={loading || busy || !p.available || p.stock === 0 || price === null}
             onClick={() => void add()}
           >
             {!p.available || p.stock === 0
@@ -142,7 +146,7 @@ export default function ProductCard({
             Фотография иллюстрирует товар. Цены тестовые.
           </p>
         </div>
-      </Modal>
+      </Modal>}
     </>
   );
 }

@@ -17,8 +17,8 @@ async function tick() {
           lte(s.notification.nextAttemptAt, Date.now()),
         ),
       )
-      .all()
-      .slice(0, 10);
+      .limit(10)
+      .all();
     for (const job of jobs) {
       const order = db
         .select()

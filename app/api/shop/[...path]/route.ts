@@ -5,6 +5,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import { db } from "@/lib/db";
+import { uploadsPath } from "@/lib/paths";
 import * as s from "@/lib/schema";
 import {
   checkOrigin,
@@ -27,7 +28,6 @@ import {
   updateOrderStatus,
 } from "@/lib/shop";
 import { ShopError } from "@/lib/rules";
-import { isMailConfigured } from "@/lib/mail";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,6 +75,13 @@ const productInput = z.object({
     )
     .max(20),
 });
+async function readJson(request: Request): Promise<unknown> {
+  try {
+    return await request.json();
+  } catch {
+    throw new ShopError("Некорректный JSON в запросе", 400, "INVALID_JSON");
+  }
+}
 async function handle(
   request: Request,
   context: { params: Promise<{ path: string[] }> },
@@ -96,7 +103,6 @@ async function handle(
           process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
         ),
         vk: !!(process.env.VK_CLIENT_ID && process.env.VK_CLIENT_SECRET),
-        emailRegistration: isMailConfigured(),
         settings: getSettings(),
       });
     const person = await identity();
@@ -120,7 +126,7 @@ async function handle(
       if (route === "admin/status" && method === "POST") {
         const body = z
           .object({ id: z.string(), status: z.string() })
-          .parse(await request.json());
+          .parse(await readJson(request));
         updateOrderStatus(body.id, body.status);
         return json({ ok: true });
       }
@@ -132,7 +138,7 @@ async function handle(
             minimum: z.number().int().min(0).max(100000000),
             city: z.string().trim().min(2).max(100),
           })
-          .parse(await request.json());
+          .parse(await readJson(request));
         db.update(s.setting)
           .set({ value: JSON.stringify(v) })
           .where(eq(s.setting.id, "delivery"))
@@ -140,7 +146,7 @@ async function handle(
         return json(v);
       }
       if (route === "admin/product" && method === "POST") {
-        const raw = await request.json();
+        const raw = await readJson(request);
         const v = productInput.parse(raw);
         if (
           !db
@@ -158,8 +164,8 @@ async function handle(
           if (existing && (expectedStock === undefined || existing.stock !== expectedStock))
             throw new ShopError("Остаток изменился. Обновите страницу и проверьте товар перед сохранением.", 409);
           if (
-            raw.creating === true &&
-            tx.select().from(s.product).where(eq(s.product.id, v.id)).get()
+            raw !== null && typeof raw === "object" && "creating" in raw && raw.creating === true &&
+            existing
           )
             throw new ShopError(
               "Товар с таким идентификатором уже существует",
@@ -213,8 +219,8 @@ async function handle(
           throw new ShopError("Не удалось прочитать изображение");
         }
         const filename = `${randomUUID()}.webp`;
-        await mkdir(path.resolve(".local/uploads"), { recursive: true });
-        await writeFile(path.resolve(".local/uploads", filename), output);
+        await mkdir(uploadsPath, { recursive: true });
+        await writeFile(path.join(uploadsPath, filename), output);
         return json({ url: `/uploads/${filename}` });
       }
       if (route === "admin/integrations" && method === "GET")
@@ -244,16 +250,16 @@ async function handle(
       const cartId = resolveCart(person);
       if (route === "cart" && method === "GET") return json(getCart(cartId));
       if (route === "cart" && method === "POST")
-        return json(changeCart(cartId, cartInput.parse(await request.json())));
+        return json(changeCart(cartId, cartInput.parse(await readJson(request))));
       if (route === "quote" && method === "POST") {
         const input = z
           .object({ fulfillment: z.enum(["pickup", "delivery"]) })
-          .parse(await request.json());
+          .parse(await readJson(request));
         return json(quote(cartId, input.fulfillment));
       }
       if (route === "orders" && method === "POST") {
         limitOrders(person.userId || person.guestHash);
-        return json(createOrder(cartId, person, await request.json()), 201);
+        return json(createOrder(cartId, person, await readJson(request)), 201);
       }
     }
     throw new ShopError("Страница не найдена", 404);

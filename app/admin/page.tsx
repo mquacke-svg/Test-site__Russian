@@ -5,7 +5,10 @@ import { getCatalog } from "@/lib/shop";
 import Admin from "@/components/Admin";
 export const dynamic = "force-dynamic";
 export default async function Page() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await auth.api.getSession({
+    headers: await headers(),
+    query: { disableRefresh: true },
+  });
   if (!session) redirect("/login?admin=1");
   if (session.user.role !== "admin")
     return (

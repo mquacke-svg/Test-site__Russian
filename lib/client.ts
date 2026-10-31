@@ -23,12 +23,17 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
       "Нет соединения с сервером. Проверьте подключение и повторите попытку.",
     );
   }
-  const data = await response.json();
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new ApiError("Сервер вернул некорректный ответ. Попробуйте ещё раз.", undefined, response.status);
+  }
   if (!response.ok)
     throw new ApiError(
-      data.error || "Не удалось выполнить запрос",
-      data.code,
+      data && typeof data === "object" && "error" in data && typeof data.error === "string" ? data.error : "Не удалось выполнить запрос",
+      data && typeof data === "object" && "code" in data && typeof data.code === "string" ? data.code : undefined,
       response.status,
     );
-  return data;
+  return data as T;
 }

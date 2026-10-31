@@ -1,13 +1,11 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname } from "node:path";
 import * as schema from "./schema";
+import { databasePath } from "./paths";
 
-export const databasePath = resolve(
-  /* turbopackIgnore: true */ process.env.DATABASE_PATH ||
-    ".local/bakery.sqlite",
-);
+export { databasePath } from "./paths";
 mkdirSync(dirname(databasePath), { recursive: true });
 const globalDb = globalThis as unknown as {
   bakerySqlite?: Database.Database;

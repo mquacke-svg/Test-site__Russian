@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { createHash, randomUUID } from "node:crypto";
 import { db } from "./db";
 import * as s from "./schema";
@@ -13,6 +13,16 @@ import type { Cart, DeliverySettings } from "./types";
 export type Identity = { guestHash: string; userId?: string; role?: string };
 export const hash = (value: string) =>
   createHash("sha256").update(value).digest("hex");
+function groupBy<T>(items: T[], key: (item: T) => string) {
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const id = key(item);
+    const group = groups.get(id) || [];
+    group.push(item);
+    groups.set(id, group);
+  }
+  return groups;
+}
 export function getSettings(): DeliverySettings {
   const found = db
     .select()
@@ -23,7 +33,7 @@ export function getSettings(): DeliverySettings {
   return JSON.parse(found.value);
 }
 export function getCatalog() {
-  const variants = db.select().from(s.variant).all();
+  const variantsByProduct = groupBy(db.select().from(s.variant).all(), (v) => v.productId);
   return {
     products: db
       .select()
@@ -31,7 +41,7 @@ export function getCatalog() {
       .all()
       .map((p) => ({
         ...p,
-        variants: variants.filter((v) => v.productId === p.id),
+        variants: variantsByProduct.get(p.id) || [],
       })),
     categories: db.select().from(s.category).all(),
     locations: db.select().from(s.location).all(),
@@ -40,21 +50,21 @@ export function getCatalog() {
 }
 export function resolveCart(identity: Identity) {
   return db.transaction((tx) => {
-    let guest = tx
+    const now = Date.now();
+    tx.delete(s.cart)
+      .where(and(isNull(s.cart.userId), lt(s.cart.expiresAt, now)))
+      .run();
+    const guest = tx
       .select()
       .from(s.cart)
       .where(eq(s.cart.guestHash, identity.guestHash))
       .get();
-    if (guest && guest.expiresAt < Date.now()) {
-      tx.delete(s.cart).where(eq(s.cart.id, guest.id)).run();
-      guest = undefined;
-    }
     if (!identity.userId) {
       if (!guest) {
         const value = {
           id: randomUUID(),
           guestHash: identity.guestHash,
-          expiresAt: Date.now() + 30 * 86400000,
+          expiresAt: now + 30 * 86400000,
         };
         tx.insert(s.cart).values(value).run();
         return value.id;
@@ -72,7 +82,7 @@ export function resolveCart(identity: Identity) {
         .values({
           id: randomUUID(),
           userId: identity.userId,
-          expiresAt: Date.now() + 30 * 86400000,
+          expiresAt: now + 30 * 86400000,
         })
         .returning()
         .get();
@@ -109,34 +119,21 @@ export function resolveCart(identity: Identity) {
   });
 }
 export function getCart(cartId: string): Cart {
-  const items = db
-    .select()
+  const rows = db
+    .select({ item: s.cartItem, product: s.product })
     .from(s.cartItem)
+    .innerJoin(s.product, eq(s.product.id, s.cartItem.productId))
     .where(eq(s.cartItem.cartId, cartId))
-    .all()
-    .map((item) => {
-      const p = db
-        .select()
-        .from(s.product)
-        .where(eq(s.product.id, item.productId))
-        .get()!;
-      const v = item.variantId
-        ? db
-            .select()
-            .from(s.variant)
-            .where(
-              and(
-                eq(s.variant.id, item.variantId),
-                eq(s.variant.productId, p.id),
-              ),
-            )
-            .get()
-        : null;
-      const requiresVariant = !!db
-        .select({ id: s.variant.id })
-        .from(s.variant)
-        .where(eq(s.variant.productId, p.id))
-        .get();
+    .all();
+  const variants = rows.length
+    ? db.select().from(s.variant).where(inArray(s.variant.productId,
+        db.select({ productId: s.cartItem.productId }).from(s.cartItem).where(eq(s.cartItem.cartId, cartId)))).all()
+    : [];
+  const variantsByProduct = groupBy(variants, (v) => v.productId);
+  const items = rows.map(({ item, product: p }) => {
+      const productVariants = variantsByProduct.get(p.id) || [];
+      const v = productVariants.find((variant) => variant.id === item.variantId);
+      const requiresVariant = productVariants.length > 0;
       const price = item.variantId
         ? (v?.price ?? null)
         : requiresVariant
@@ -183,7 +180,11 @@ export function changeCart(
       if (!item)
         throw new ShopError("Позиция не найдена", 404);
       if (input.action === "update" && input.quantity! > item.quantity)
-        checkCartStock(cartId, item.productId, input.quantity! - item.quantity);
+        checkCartStock(
+          cartId,
+          tx.select().from(s.product).where(eq(s.product.id, item.productId)).get(),
+          input.quantity! - item.quantity,
+        );
       if (input.action === "remove" || input.quantity === 0)
         tx.delete(s.cartItem).where(condition).run();
       else
@@ -225,7 +226,7 @@ export function changeCart(
       const quantity = (existing?.quantity || 0) + (input.quantity || 1);
       if (quantity > 99)
         throw new ShopError("Не более 99 единиц одной позиции");
-      checkCartStock(cartId, p.id, input.quantity || 1);
+      checkCartStock(cartId, p, input.quantity || 1);
       if (existing)
         tx.update(s.cartItem)
           .set({ quantity })
@@ -245,13 +246,16 @@ export function changeCart(
     return getCart(cartId);
   });
 }
-function checkCartStock(cartId: string, productId: string, additional: number) {
-  const p = db.select().from(s.product).where(eq(s.product.id, productId)).get();
+function checkCartStock(
+  cartId: string,
+  p: typeof s.product.$inferSelect | undefined,
+  additional: number,
+) {
   if (!p || !p.available) throw new ShopError("Этот товар сейчас недоступен", 409);
-  const total = db.select().from(s.cartItem).where(and(eq(s.cartItem.cartId, cartId), eq(s.cartItem.productId, productId))).all()
+  const total = db.select().from(s.cartItem).where(and(eq(s.cartItem.cartId, cartId), eq(s.cartItem.productId, p.id))).all()
     .reduce((sum, item) => sum + item.quantity, 0);
   if (p.stock !== null && total + additional > p.stock)
-    throw new ShopError(`Недостаточно товара «${p.name}»: в наличии ${p.stock} шт.`, 409, "OUT_OF_STOCK");
+    throw new ShopError(`Недостаточно товара «${p.name}». Уменьшите количество в корзине.`, 409, "OUT_OF_STOCK");
 }
 export function quote(cartId: string, fulfillment: string) {
   const cart = getCart(cartId);
@@ -267,7 +271,7 @@ export function quote(cartId: string, fulfillment: string) {
   for (const item of cart.items) totals.set(item.productId, (totals.get(item.productId) || 0) + item.quantity);
   for (const item of cart.items) {
     if (item.stock !== null && totals.get(item.productId)! > item.stock)
-      throw new ShopError(`Недостаточно товара «${item.name}»: в наличии ${item.stock} шт. Измените корзину.`, 409, "OUT_OF_STOCK");
+      throw new ShopError(`Недостаточно товара «${item.name}». Уменьшите количество в корзине.`, 409, "OUT_OF_STOCK");
   }
   const settings = getSettings();
   const delivery = deliveryCost(cart.subtotal, fulfillment, settings);
@@ -368,7 +372,7 @@ export function createOrder(cartId: string, identity: Identity, body: unknown) {
         fulfillment: input.fulfillment,
         address:
           input.fulfillment === "delivery"
-            ? `${getSettings().city}, ${input.address}`
+            ? `${current.settings.city}, ${input.address}`
             : null,
         locationId: pickup?.id ?? null,
         locationLabel: pickup ? `${pickup.title}, ${pickup.address}` : null,
@@ -409,6 +413,8 @@ export function createOrder(cartId: string, identity: Identity, body: unknown) {
   });
 }
 export function listOrders(identity: Identity, admin = false) {
+  if (admin && identity.role !== "admin")
+    throw new ShopError("Доступ только для администратора", 403);
   const rows = admin
     ? db.select().from(s.order).orderBy(desc(s.order.createdAt)).all()
     : identity.userId
@@ -419,7 +425,17 @@ export function listOrders(identity: Identity, admin = false) {
           .orderBy(desc(s.order.createdAt))
           .all()
       : [];
-  return rows.map((o) => orderDetails(o.id, identity));
+  const items = rows.length
+    ? db.select({ item: s.orderItem }).from(s.orderItem)
+        .innerJoin(s.order, eq(s.order.id, s.orderItem.orderId))
+        .where(admin ? undefined : eq(s.order.userId, identity.userId!))
+        .all().map(({ item }) => item)
+    : [];
+  const byOrder = groupBy(items, (item) => item.orderId);
+  return rows.map(({ guestHash: _guest, idempotencyKey: _key, ...order }) => ({
+    ...order,
+    items: byOrder.get(order.id) || [],
+  }));
 }
 export function claimGuestOrders(identity: Identity) {
   if (!identity.userId) throw new ShopError("Войдите в аккаунт", 401);

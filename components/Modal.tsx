@@ -18,13 +18,16 @@ export default function Modal({
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (open && !dialog.open) dialog.showModal();
     if (!open && dialog.open) dialog.close();
     if (open) {
       const old = document.body.style.overflow;
       document.body.style.overflow = "hidden";
       return () => {
+        if (dialog.open) dialog.close();
         document.body.style.overflow = old;
+        previouslyFocused?.focus();
       };
     }
   }, [open]);

@@ -931,7 +931,6 @@ section[id] {
 }
 .search-field input {
   background: none;
-  outline: 0;
   width: 100%;
   min-width: 0;
   border: 0;

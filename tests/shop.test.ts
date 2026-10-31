@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import {
   deliveryCost,
   checkoutSchema,
@@ -155,6 +155,51 @@ describe("Persistent commerce integration", () => {
     expect(shop.getCart(cartId).count).toBe(2);
     expect(shop.getCart(shop.resolveCart(person())).count).toBe(0);
   });
+  it("cleans all expired guest carts and their items without changing user carts, orders or stock", () => {
+    const expired = addPastry(), abandoned = addPastry(), active = addPastry();
+    const userId = randomUUID(), now = new Date();
+    dbModule.db.insert(s.user).values({
+      id: userId,
+      name: "Cart retention test",
+      email: `${userId}@example.test`,
+      createdAt: now,
+      updatedAt: now,
+    }).run();
+    const identified = { ...person(), userId };
+    const ownedId = shop.resolveCart(identified);
+    shop.changeCart(ownedId, { action: "add", productId: expired.p.id, quantity: 1 });
+    dbModule.db.update(s.product).set({ stock: 10 }).where(eq(s.product.id, expired.p.id)).run();
+    try {
+      const order = shop.createOrder(expired.cartId, expired.identity, body(expired.cartId));
+      shop.changeCart(expired.cartId, { action: "add", productId: expired.p.id, quantity: 1 });
+      const expiredIds = [expired.cartId, abandoned.cartId];
+      dbModule.db.update(s.cart).set({ expiresAt: 0 })
+        .where(inArray(s.cart.id, [...expiredIds, ownedId])).run();
+      const ownedBefore = dbModule.db.select().from(s.cart).where(eq(s.cart.id, ownedId)).get();
+      const ownedItemsBefore = shop.getCart(ownedId);
+      const activeBefore = shop.getCart(active.cartId);
+      const ordersBefore = dbModule.db.select().from(s.order).all();
+      const orderItemsBefore = dbModule.db.select().from(s.orderItem).all();
+      const stockBefore = dbModule.db.select().from(s.product).where(eq(s.product.id, expired.p.id)).get()?.stock;
+
+      shop.resolveCart(person());
+
+      expect(dbModule.db.select().from(s.cart).where(inArray(s.cart.id, expiredIds)).all()).toEqual([]);
+      expect(dbModule.db.select().from(s.cartItem).where(inArray(s.cartItem.cartId, expiredIds)).all()).toEqual([]);
+      expect(dbModule.db.select().from(s.cart).where(eq(s.cart.id, ownedId)).get()).toEqual(ownedBefore);
+      expect(shop.getCart(ownedId)).toEqual(ownedItemsBefore);
+      expect(shop.resolveCart(identified)).toBe(ownedId);
+      expect(shop.resolveCart(active.identity)).toBe(active.cartId);
+      expect(shop.getCart(active.cartId)).toEqual(activeBefore);
+      expect(dbModule.db.select().from(s.order).all()).toEqual(ordersBefore);
+      expect(dbModule.db.select().from(s.orderItem).all()).toEqual(orderItemsBefore);
+      expect(shop.orderDetails(order.id, expired.identity)).toEqual(order);
+      expect(dbModule.db.select().from(s.product).where(eq(s.product.id, expired.p.id)).get()?.stock).toBe(stockBefore);
+      expect(shop.resolveCart(expired.identity)).not.toBe(expired.cartId);
+    } finally {
+      dbModule.db.update(s.product).set({ stock: expired.p.stock }).where(eq(s.product.id, expired.p.id)).run();
+    }
+  });
   it("keeps beverage variants separate and rejects unknown variants", () => {
     const id = shop.resolveCart(person());
     const p = shop.getCatalog().products.find((p) => p.variants.length >= 2)!;
@@ -279,6 +324,17 @@ describe("Persistent commerce integration", () => {
       .where(eq(s.product.id, p.id))
       .run();
   });
+  it("marks removed and newly required variants unavailable in the cart", () => {
+    const { cartId, p } = addPastry();
+    const variant = { id: `test-${randomUUID()}`, productId: p.id, label: "Тест", volumeMl: 250, price: 10000 };
+    dbModule.db.insert(s.variant).values(variant).run();
+    expect(shop.getCart(cartId).items[0].available).toBe(false);
+    shop.changeCart(cartId, { action: "add", productId: p.id, variantId: variant.id, quantity: 1 });
+    dbModule.db.delete(s.variant).where(eq(s.variant.id, variant.id)).run();
+    const removed = shop.getCart(cartId).items.find((item) => item.variantId === variant.id)!;
+    expect(removed.available).toBe(false);
+    expect(removed.price).toBeNull();
+  });
   it("is idempotent, preserves price snapshots, queues notifications and denies other guests", () => {
     const { identity, cartId, p } = addPastry();
     const payload = body(cartId);
@@ -336,6 +392,14 @@ describe("Persistent commerce integration", () => {
     expect(shop.claimGuestOrders(identified)).toBe(0);
     expect(() => shop.orderDetails(order.id, a.identity)).toThrow();
     expect(shop.orderDetails(order.id, identified).id).toBe(order.id);
+    const ownOrders = shop.listOrders(identified);
+    expect(ownOrders.map((o) => o.id)).toEqual([order.id]);
+    expect(ownOrders[0].items).toHaveLength(1);
+    expect(ownOrders[0].total).toBe(order.total);
+    expect(ownOrders[0]).not.toHaveProperty("guestHash");
+    expect(ownOrders[0]).not.toHaveProperty("idempotencyKey");
+    expect(() => shop.listOrders(identified, true)).toThrow(/администратора/);
+    expect(shop.listOrders({ ...identified, userId: randomUUID() })).toEqual([]);
   });
   it("seed reruns preserve administrative changes", () => {
     const p = shop.getCatalog().products[0];
@@ -412,7 +476,7 @@ describe("Real local authentication and authorization", () => {
     await auth.api.signOut({ headers });
     expect(await auth.api.getSession({ headers })).toBeNull();
   });
-  it("denies public password sign-up including role injection", async () => {
+  it("allows public password sign-up without granting injected roles", async () => {
     const { auth } = await import("../lib/auth");
     const result = await auth.api.signUpEmail({
       body: {
@@ -424,13 +488,13 @@ describe("Real local authentication and authorization", () => {
       asResponse: true,
       headers: new Headers({ origin: "http://localhost:3000" }),
     });
-    expect(result.status).toBeGreaterThanOrEqual(400);
+    expect(result.status).toBe(200);
     expect(
       dbModule.db
         .select()
         .from(s.user)
         .where(eq(s.user.email, "intruder@test.example"))
-        .get(),
-    ).toBeUndefined();
+        .get()?.role,
+    ).toBe("customer");
   });
 });

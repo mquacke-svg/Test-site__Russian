@@ -52,7 +52,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `public/` — логотипы SVG, фото пекарни и `products/*.webp`.
 - `next.config.ts` — настройки оптимизации изображений.
 - `DESIGN.md` — визуальные референсы, описание логотипов и происхождения фото.
-- `CLAUDE.md` — ссылка на этот файл; общие инструкции хранить в `AGENTS.md`.
+- Общие инструкции по работе с проектом хранить в `AGENTS.md`.
 
 ## Правила изменений
 

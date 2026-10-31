@@ -1,8 +1,9 @@
 import { betterAuth } from "better-auth";
+import { username } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { nextCookies } from "better-auth/next-js";
 import { db } from "./db";
 import * as schema from "./schema";
-import { isMailConfigured, sendVerificationMail } from "./mail";
 
 export const auth = betterAuth({
   appName: "Жак-Андрэ",
@@ -11,19 +12,12 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "sqlite", schema }),
   emailAndPassword: {
     enabled: true,
-    disableSignUp: !isMailConfigured(),
     minPasswordLength: 8,
-    requireEmailVerification: true,
-    autoSignIn: false,
+    requireEmailVerification: false,
+    autoSignIn: true,
   },
-  emailVerification: {
-    sendOnSignUp: true,
-    autoSignInAfterVerification: true,
-    expiresIn: 60 * 60,
-    sendVerificationEmail: async ({ user, url }) => {
-      await sendVerificationMail(user.email, url);
-    },
-  },
+  plugins: [username({ displayUsername: false }), nextCookies()],
+  disabledPaths: ["/send-verification-email"],
   user: {
     additionalFields: {
       role: { type: "string", defaultValue: "customer", input: false },
@@ -35,7 +29,7 @@ export const auth = betterAuth({
     enabled: true, window: 60, max: 30,
     customRules: {
       "/sign-up/email": { window: 60, max: 3 },
-      "/send-verification-email": { window: 60, max: 3 },
+      "/sign-in/username": { window: 60, max: 10 },
     },
   },
   socialProviders: {

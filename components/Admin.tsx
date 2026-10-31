@@ -30,6 +30,7 @@ export default function Admin({ initial }: { initial: Catalog }) {
     [isNew, setIsNew] = useState(false),
     [message, setMessage] = useState(""),
     [error, setError] = useState(""),
+    [catalogError, setCatalogError] = useState(""),
     [busy, setBusy] = useState(false);
   const [integration, setIntegration] = useState<{
     telegram: boolean;
@@ -67,14 +68,31 @@ export default function Admin({ initial }: { initial: Catalog }) {
       clearInterval(timer);
     };
   }, [tab]);
+  const reloadCatalog = async () => {
+    setBusy(true);
+    setCatalogError("");
+    try {
+      setCatalog(await api<Catalog>("catalog"));
+    } catch (e) {
+      setCatalogError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
   const saveProduct = async (p: Product) => {
     setBusy(true);
     setError("");
     try {
       await api("admin/product", { ...p, creating: isNew, expectedStock: editing?.stock });
-      setCatalog(await api<Catalog>("catalog"));
+      setCatalog((current) => ({
+        ...current,
+        products: current.products.some((item) => item.id === p.id)
+          ? current.products.map((item) => item.id === p.id ? p : item)
+          : [...current.products, p],
+      }));
       setEditing(null);
       setMessage("Товар сохранён.");
+      await reloadCatalog();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -160,6 +178,14 @@ export default function Admin({ initial }: { initial: Catalog }) {
           {error}
         </p>
       )}
+      {catalogError && (
+        <div className="error" role="alert">
+          Товар сохранён, но не удалось обновить каталог: {catalogError}{" "}
+          <button type="button" disabled={busy} onClick={() => void reloadCatalog()}>
+            Повторить загрузку каталога
+          </button>
+        </div>
+      )}
       {tab === "orders" && (
         <>
           <div className="admin-toolbar">
@@ -228,6 +254,7 @@ export default function Admin({ initial }: { initial: Catalog }) {
             </label>
             <button
               className="button"
+              disabled={busy}
               onClick={() => {
                 setIsNew(true);
                 setError("");
@@ -283,6 +310,7 @@ export default function Admin({ initial }: { initial: Catalog }) {
                   </div>
                   <button
                     className="button button-small button-outline"
+                    disabled={busy}
                     onClick={() => {
                       setIsNew(false);
                       setError("");
@@ -408,7 +436,7 @@ function ProductEditor({
   error: string;
   onSave: (p: Product) => Promise<void>;
 }) {
-  const [p, setP] = useState<Product>(structuredClone(product)),
+  const [p, setP] = useState<Product>(product),
     [uploading, setUploading] = useState(false),
     [uploadError, setUploadError] = useState("");
   const upload = async (file?: File) => {

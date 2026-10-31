@@ -60,7 +60,6 @@ export default function CartContents({
                 <span>
                   {item.available ? money(item.price!) : "Сейчас недоступен"}
                 </span>
-                {item.stock !== null && <span className="muted">В наличии: {item.stock} шт. для всех объёмов</span>}
                 <div className="quantity">
                   <button
                     disabled={busy}

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Store, Truck, ShieldCheck } from "lucide-react";
@@ -25,7 +25,7 @@ export default function Checkout({
   locations: Location[];
   settings: DeliverySettings;
 }) {
-  const { cart, loading, refresh } = useShop();
+  const { cart, loading, refresh, error: cartError } = useShop();
   const router = useRouter();
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">(
     "pickup",
@@ -35,46 +35,66 @@ export default function Checkout({
   const [busy, setBusy] = useState(false);
   const [quoteBusy, setQuoteBusy] = useState(false);
   const [done, setDone] = useState(false);
+  const [attemptState, setAttemptState] = useState<"checking" | "ready" | "error" | "redirecting">("checking");
+  const [attemptError, setAttemptError] = useState("");
+  const [attemptRetry, setAttemptRetry] = useState(0);
   const key = useRef("");
+  const attemptChecked = useRef(false);
+  const quoteRequest = useRef(0);
   const settings = current?.settings || initialSettings;
+  const loadQuote = useCallback(async (notice = "") => {
+    const request = ++quoteRequest.current;
+    setCurrent(null);
+    setQuoteBusy(true);
+    setError(notice);
+    try {
+      const value = await api<Quote>("quote", { fulfillment });
+      if (request === quoteRequest.current) setCurrent(value);
+    } catch (e) {
+      if (request === quoteRequest.current) setError((e as Error).message);
+    } finally {
+      if (request === quoteRequest.current) setQuoteBusy(false);
+    }
+  }, [fulfillment]);
   useEffect(() => {
+    if (loading || cartError || attemptChecked.current) return;
+    let live = true;
+    setAttemptState("checking");
     key.current =
       sessionStorage.getItem("bakery_checkout_key") || crypto.randomUUID();
     sessionStorage.setItem("bakery_checkout_key", key.current);
     void api<Order | null>(`order-attempt?key=${key.current}`)
       .then((prior) => {
+        if (!live) return;
         if (prior) {
           sessionStorage.removeItem("bakery_checkout_key");
+          setAttemptState("redirecting");
           router.replace(`/orders/${prior.id}`);
-        }
-      })
-      .catch(() => {});
-  }, [router]);
-  useEffect(() => {
-    let live = true;
-    setCurrent(null);
-    if (!cart.count) return;
-    setQuoteBusy(true);
-    api<Quote>("quote", { fulfillment })
-      .then((q) => {
-        if (live) {
-          setCurrent(q);
-          setError("");
+        } else {
+          attemptChecked.current = true;
+          setAttemptState("ready");
         }
       })
       .catch((e) => {
-        if (live) setError(e.message);
-      })
-      .finally(() => {
-        if (live) setQuoteBusy(false);
+        if (live) {
+          setAttemptError((e as Error).message);
+          setAttemptState("error");
+        }
       });
+    return () => { live = false; };
+  }, [router, loading, cartError, attemptRetry]);
+  useEffect(() => {
+    if (loading || cartError || !cart.count) {
+      setCurrent(null);
+      setQuoteBusy(false);
+    } else void loadQuote();
     return () => {
-      live = false;
+      quoteRequest.current++;
     };
-  }, [cart, fulfillment]);
+  }, [cart, cartError, loadQuote, loading]);
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!current || busy) return;
+    if (!current || cartError || busy || quoteBusy || attemptState !== "ready") return;
     setBusy(true);
     setError("");
     const form = new FormData(event.currentTarget);
@@ -101,11 +121,7 @@ export default function Checkout({
         sessionStorage.setItem("bakery_checkout_key", key.current);
       }
       if (e instanceof ApiError && e.code === "PRICE_CHANGED") {
-        try {
-          setCurrent(await api<Quote>("quote", { fulfillment }));
-        } catch {
-          setCurrent(null);
-        }
+        await loadQuote(e.message);
       }
     } finally {
       setBusy(false);
@@ -117,6 +133,12 @@ export default function Checkout({
         {done ? "Открываем ваш заказ…" : "Загружаем корзину…"}
       </p>
     );
+  if (cartError && !attemptChecked.current)
+    return <div className="error" role="alert">{cartError} <button onClick={() => void refresh()}>Повторить загрузку корзины</button></div>;
+  if (attemptState === "checking" || attemptState === "redirecting")
+    return <p className="muted">{attemptState === "redirecting" ? "Открываем ваш заказ…" : "Проверяем предыдущую попытку заказа…"}</p>;
+  if (attemptState === "error")
+    return <div className="error" role="alert">Не удалось проверить предыдущий заказ: {attemptError} <button onClick={() => setAttemptRetry((n) => n + 1)}>Повторить</button></div>;
   if (!cart.count)
     return (
       <div className="empty-state">
@@ -136,6 +158,7 @@ export default function Checkout({
             <input
               type="radio"
               name="fulfillment"
+              disabled={busy}
               checked={fulfillment === "pickup"}
               onChange={() => setFulfillment("pickup")}
             />
@@ -145,6 +168,7 @@ export default function Checkout({
             <input
               type="radio"
               name="fulfillment"
+              disabled={busy}
               checked={fulfillment === "delivery"}
               onChange={() => setFulfillment("delivery")}
             />
@@ -283,9 +307,27 @@ export default function Checkout({
             {error}
           </div>
         )}
+        {cartError && (
+          <div className="error" role="alert">
+            {cartError}{" "}
+            <button type="button" onClick={() => void refresh()}>
+              Повторить загрузку корзины
+            </button>
+          </div>
+        )}
+        {!current && !quoteBusy && !cartError && (
+          <button
+            type="button"
+            className="text-button"
+            disabled={busy}
+            onClick={() => void loadQuote()}
+          >
+            Повторить расчёт заказа
+          </button>
+        )}
         <button
           className="button full-width"
-          disabled={busy || quoteBusy || !current}
+          disabled={busy || quoteBusy || !!cartError || !current || attemptState !== "ready"}
           type="submit"
         >
           {busy ? "Сохраняем заказ…" : "Оформить тестовый заказ"} <span>→</span>

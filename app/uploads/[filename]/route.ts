@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { uploadsPath } from "@/lib/paths";
 export async function GET(
   _request: Request,
   context: { params: Promise<{ filename: string }> },
@@ -8,7 +9,7 @@ export async function GET(
   if (!/^[a-f0-9-]{36}\.webp$/.test(filename))
     return new Response(null, { status: 404 });
   try {
-    const data = await readFile(path.resolve(".local/uploads", filename));
+    const data = await readFile(path.join(uploadsPath, filename));
     return new Response(data, {
       headers: {
         "Content-Type": "image/webp",

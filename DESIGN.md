@@ -1,8 +1,8 @@
 # DESIGN.md — «Жак-Андрэ», французская пекарня
 
 Спецификация визуальной части сайта: логотип, фотобанк, рекомендации по стилю.
-Файл ведёт роль дизайнера; кодовая часть (Next.js, `data/`, `tailwind.config`, `app/layout.tsx`)
-находится в зоне ответственности technical-architect.
+Кодовая часть использует Next.js; данные находятся в `data/`,
+корневой layout — в `app/layout.tsx`.
 
 ---
 
@@ -67,7 +67,7 @@
 
 ### Favicon
 
-`logo-mark.svg` подходит напрямую. В `app/layout.tsx` (зона technical-architect):
+`logo-mark.svg` подходит напрямую. В `app/layout.tsx`:
 
 ```ts
 export const metadata = {
